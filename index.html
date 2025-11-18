@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản lý Chay Hoa Sen</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                DEFAULT: '#15803d', // green-700
+                dark: '#166534', // green-800
+                light: '#22c55e', // green-500
+              },
+              accent: {
+                DEFAULT: '#fbbf24', // amber-400
+                dark: '#f59e0b'    // amber-500
+              }
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.4.1",
+    "firebase/app": "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js",
+    "firebase/database": "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js",
+    "firebase/storage": "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+  }
+}
+</script>
+<style id="print-styles">
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    #bill-preview, #bill-preview *,
+    #settings-bill-preview, #settings-bill-preview * {
+      visibility: visible;
+    }
+    #bill-preview, #settings-bill-preview {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      border: none;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .no-print {
+      display: none !important;
+    }
+  }
+</style>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gradient-to-br from-primary-dark to-primary text-gray-100">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
