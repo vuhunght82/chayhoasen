@@ -1,7 +1,9 @@
+
 export interface Branch {
   id: string;
   name: string;
-  tableCount?: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface Category {
@@ -17,6 +19,7 @@ export interface MenuItem {
   price: number;
   imageUrl: string;
   isOutOfStock?: boolean;
+  isFeatured?: boolean;
   branchIds: string[];
 }
 
@@ -63,4 +66,6 @@ export interface PrinterSettings {
     header: string;
     footer: string;
     qrCodeUrl: string;
+    paperSize: '80mm' | '58mm' | 'A4' | 'A5'; // Added paper size
+    printerName?: string; // Added reference name
 }

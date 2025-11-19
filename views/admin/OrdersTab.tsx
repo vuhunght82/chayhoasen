@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Order, OrderStatus, MenuItem, PrinterSettings, Branch, PaymentMethod, OrderItem } from '../../types';
 import { useToast, useConfirmation } from '../../App';
@@ -20,8 +21,8 @@ const OrderDetailsModal: React.FC<{
     if (!order) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-            <div className="bg-primary-dark border-2 border-accent rounded-lg p-6 w-full max-w-md text-white shadow-2xl flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
+            <div className="bg-primary-dark border-2 border-accent rounded-lg p-6 w-full max-w-md text-white shadow-2xl flex flex-col max-h-[90vh]">
                  <div className="flex justify-between items-start border-b border-accent/50 pb-3 mb-4">
                     <div>
                         <h3 className="text-2xl font-bold text-accent">Chi tiết Đơn hàng #{order.id.slice(0, 4)}</h3>
@@ -41,7 +42,7 @@ const OrderDetailsModal: React.FC<{
                         <p className="text-white whitespace-pre-wrap">{order.note}</p>
                     </div>
                 )}
-                <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
+                <div className="space-y-3 flex-grow overflow-y-auto pr-2">
                     {order.items.map((item, index) => (
                          <div key={index} className="bg-primary p-3 rounded-md">
                             <div className="flex justify-between items-center">
@@ -75,53 +76,129 @@ const BillPreviewModal: React.FC<{
     if (!order) return null;
 
     const handlePrint = () => {
-        window.print();
+        const previewElement = document.getElementById('bill-preview');
+        if (previewElement) {
+            // Determine width based on paper size settings
+            let paperWidth = '100%'; 
+            if (settings.paperSize === '80mm') paperWidth = '72mm';
+            if (settings.paperSize === '58mm') paperWidth = '48mm';
+            if (settings.paperSize === 'A4') paperWidth = '210mm';
+            if (settings.paperSize === 'A5') paperWidth = '148mm';
+
+            // Open a new window
+            const printWindow = window.open('', '_blank', 'width=800,height=600');
+            if (printWindow) {
+                printWindow.document.open();
+                printWindow.document.write('<!DOCTYPE html>');
+                printWindow.document.write('<html><head><title>Hóa Đơn</title>');
+                // Use Tailwind CDN
+                printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+                
+                // Inject custom print styles
+                printWindow.document.write(`
+                    <style>
+                        @page { size: auto; margin: 0mm; }
+                        body { 
+                            margin: 0; 
+                            padding: 5mm; 
+                            width: ${paperWidth}; 
+                            font-family: monospace; 
+                            background-color: white;
+                            color: black;
+                        }
+                        /* Force black text for printing */
+                        * { color: black !important; }
+                        /* Hide scrollbars in print */
+                        ::-webkit-scrollbar { display: none; }
+                        .no-print { display: none; }
+                    </style>
+                `);
+                printWindow.document.write('</head><body class="bg-white text-black">');
+                printWindow.document.write(previewElement.innerHTML);
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+
+                // Wait for resources to load
+                setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                    // Optional: close after print
+                    // printWindow.close();
+                }, 1500);
+            } else {
+                alert('Vui lòng cho phép mở cửa sổ bật lên (pop-up) để in hóa đơn.');
+            }
+        }
+    };
+    
+    // Determine preview width based on paper size
+    const getPreviewWidthClass = () => {
+        switch (settings.paperSize) {
+            case '58mm': return 'w-[58mm]';
+            case '80mm': return 'w-[80mm]';
+            case 'A5': return 'w-[148mm]';
+            case 'A4': return 'w-[210mm]';
+            default: return 'w-full max-w-sm';
+        }
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-            <div id="bill-preview" className="bg-white text-black rounded-lg shadow-xl w-full max-w-sm p-6 relative">
-                <div className="text-center font-mono text-black">
-                    <pre className="whitespace-pre-wrap text-sm">{settings.header}</pre>
-                    <h2 className="text-lg font-bold my-4">HÓA ĐƠN THANH TOÁN</h2>
-                    <div className="text-left text-sm">
-                        <p>Số HD: #{order.id.slice(-6).toUpperCase()}</p>
-                        <p>Bàn: {order.tableNumber}</p>
-                        <p>Ngày: {new Date(order.timestamp).toLocaleString('vi-VN')}</p>
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-start pt-10 z-[100] overflow-y-auto">
+            <div className="flex flex-col items-center my-10">
+                <h3 className="text-white font-bold mb-4 text-xl">Xem trước bản in</h3>
+                 <div className={`bg-white text-black rounded-sm shadow-2xl p-4 mb-6 ${getPreviewWidthClass()} min-h-[300px]`}>
+                    <div id="bill-preview" className="text-black">
+                        <div className="text-center font-mono text-xs text-black leading-relaxed">
+                            <pre className="whitespace-pre-wrap text-black font-sans text-sm font-semibold mb-2">{settings.header}</pre>
+                            <h2 className="text-lg font-bold my-2 text-black uppercase border-b-2 border-black pb-1 inline-block">HÓA ĐƠN THANH TOÁN</h2>
+                            <div className="text-left text-black mt-2 mb-2 text-sm">
+                                <p>Số HD: <span className="font-bold">#{order.id.slice(-6).toUpperCase()}</span></p>
+                                <p>Bàn: <span className="font-bold">{order.tableNumber}</span></p>
+                                <p>Ngày: {new Date(order.timestamp).toLocaleString('vi-VN')}</p>
+                            </div>
+                            <hr className="my-2 border-dashed border-black" />
+                            <table className="w-full text-left text-black text-sm">
+                                <thead>
+                                    <tr className="border-b border-black border-dashed">
+                                        <th className="font-bold py-1">Món</th>
+                                        <th className="font-bold text-center py-1 w-8">SL</th>
+                                        <th className="font-bold text-right py-1">Tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {order.items.map((item, index) => (
+                                        <tr key={index}>
+                                            <td className="py-1 pr-1 align-top">
+                                                <div className="font-semibold">{item.name}</div>
+                                                {item.note && <div className="text-[10px] italic text-gray-800">- {item.note}</div>}
+                                            </td>
+                                            <td className="text-center py-1 align-top">{item.quantity}</td>
+                                            <td className="text-right py-1 align-top font-medium">{((item.price || 0) * item.quantity).toLocaleString('vi-VN')}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            <hr className="my-2 border-t-2 border-black" />
+                            <div className="text-right font-bold text-lg text-black">
+                                <p>TỔNG: {(order.total || 0).toLocaleString('vi-VN')}đ</p>
+                            </div>
+                            <hr className="my-2 border-dashed border-black" />
+                            <pre className="whitespace-pre-wrap text-black font-sans mt-4">{settings.footer}</pre>
+                            {settings.qrCodeUrl && (
+                                <div className="mt-4 flex flex-col items-center">
+                                    <img src={settings.qrCodeUrl} alt="Bank QR" className="w-32 h-32 object-contain border border-black"/>
+                                    <p className="text-[10px] mt-1">Quét mã để thanh toán</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <hr className="my-2 border-dashed border-black" />
-                    <table className="w-full text-left text-sm">
-                        <thead>
-                            <tr>
-                                <th className="font-semibold">Tên món</th>
-                                <th className="font-semibold text-center">SL</th>
-                                <th className="font-semibold text-right">Thành tiền</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {order.items.map((item, index) => (
-                                <tr key={index}>
-                                    <td>
-                                        {item.name}
-                                        {item.note && <div className="text-xs italic text-gray-600"> - {item.note}</div>}
-                                    </td>
-                                    <td className="text-center">{item.quantity}</td>
-                                    <td className="text-right">{((item.price || 0) * item.quantity).toLocaleString('vi-VN')}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <hr className="my-2 border-dashed border-black" />
-                    <div className="text-right font-bold text-base">
-                        <p>TỔNG CỘNG: {(order.total || 0).toLocaleString('vi-VN')}đ</p>
-                    </div>
-                    <hr className="my-2 border-dashed border-black" />
-                    <pre className="whitespace-pre-wrap text-sm">{settings.footer}</pre>
-                    {settings.qrCodeUrl && <img src={settings.qrCodeUrl} alt="Bank QR" className="mx-auto mt-4 w-32 h-32 object-contain"/>}
                 </div>
-                <div className="mt-6 flex justify-end gap-3 no-print">
-                    <button onClick={onClose} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">Đóng</button>
-                    <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">In</button>
+                <div className="flex gap-4 pb-10 sticky bottom-4">
+                    <button onClick={onClose} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform hover:scale-105">Đóng</button>
+                    <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        In Hóa Đơn
+                    </button>
                 </div>
             </div>
         </div>
@@ -151,7 +228,7 @@ const AddMenuItemModal: React.FC<{
             <div className="bg-primary-dark border-2 border-accent rounded-lg p-6 w-full max-w-lg text-white shadow-2xl flex flex-col h-[80vh]">
                 <h3 className="text-2xl font-bold text-accent mb-4">Thêm món vào đơn</h3>
                 <input 
-                    type="text"
+                    type="text" 
                     placeholder="Tìm kiếm món ăn..."
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
@@ -162,7 +239,7 @@ const AddMenuItemModal: React.FC<{
                         <div key={item.id} className="flex justify-between items-center bg-primary p-3 rounded-md">
                             <div>
                                 <p className="font-semibold">{item.name}</p>
-                                <p className="text-sm text-gray-200">{(item.price || 0).toLocaleString('vi-VN')}đ</p>
+                                <p className="text-sm text-gray-200">{item.price.toLocaleString('vi-VN')}đ</p>
                             </div>
                             <button onClick={() => onAddItem(item)} className="bg-accent hover:bg-accent-dark text-primary-dark font-bold py-1 px-3 rounded-lg text-sm">Thêm</button>
                         </div>
@@ -182,6 +259,7 @@ const OrderEditModal: React.FC<{
 }> = ({ order, menuItems, onClose, onSave }) => {
     const [editedOrder, setEditedOrder] = useState<Order | null>(order ? JSON.parse(JSON.stringify(order)) : null);
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+    const { showToast } = useToast();
 
     useEffect(() => {
         if (!editedOrder) return;
@@ -226,6 +304,7 @@ const OrderEditModal: React.FC<{
             });
         }
         setEditedOrder({ ...editedOrder, items: newItems });
+        showToast('Đã thêm món vào đơn!', 'success');
     };
 
     return (
@@ -302,7 +381,7 @@ const OrderCard: React.FC<{
     onViewDetails: (order: Order) => void;
     onEdit: (order: Order) => void;
 }> = ({ order, branchName, onStatusChange, onPrint, onViewDetails, onEdit }) => (
-    <div className="bg-primary-dark border border-accent rounded-lg p-4 shadow-lg flex flex-col justify-between">
+    <div className="bg-primary-dark border border-accent rounded-lg p-4 shadow-lg flex flex-col justify-between transform transition hover:scale-[1.02]">
         <div onClick={() => onViewDetails(order)} className="cursor-pointer">
             <div className="flex justify-between items-start mb-2">
                 <h3 className="font-bold text-lg text-accent">Bàn {order.tableNumber} - #{order.id.slice(0, 4)}</h3>
@@ -310,32 +389,35 @@ const OrderCard: React.FC<{
                     {order.status}
                 </span>
             </div>
-            <p className="text-sm text-gray-200">Chi nhánh: {branchName}</p>
-            <p className="text-sm text-gray-200">Thời gian: {new Date(order.timestamp).toLocaleString('vi-VN')}</p>
+            <p className="text-sm text-gray-200 truncate">CN: {branchName}</p>
+            <p className="text-sm text-gray-200">{new Date(order.timestamp).toLocaleString('vi-VN')}</p>
             <div className="flex items-center gap-2 text-sm text-gray-200 mt-1">
                  {order.paymentMethod === PaymentMethod.CASH ? '💵' : '💳'}
                  <span>{order.paymentMethod}</span>
             </div>
             <div className="border-t border-accent/30 my-2"></div>
             <div className="flex justify-between items-center">
-                <p className="text-sm text-gray-100">Gồm {order.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)} món</p>
+                <p className="text-sm text-gray-100">Gồm {order.items.reduce((sum, item) => sum + item.quantity, 0)} món</p>
                 {order.note && <span className="text-lg" title={`Ghi chú chung: ${order.note}`}>💬</span>}
             </div>
             <p className="font-semibold text-lg text-white mt-1">Tổng: {(order.total || 0).toLocaleString('vi-VN')}đ</p>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
             {order.status === OrderStatus.NEW && 
-                <button onClick={() => onStatusChange(order, OrderStatus.COMPLETED)} className="flex-1 text-sm bg-green-600 hover:bg-green-700 text-white py-1 px-2 rounded-md transition-colors">Hoàn thành</button>
+                <button onClick={() => onStatusChange(order, OrderStatus.COMPLETED)} className="flex-1 text-xs font-bold bg-green-600 hover:bg-green-700 text-white py-2 px-2 rounded-md transition-colors">Hoàn thành</button>
             }
              {order.status === OrderStatus.COMPLETED && 
-                <button onClick={() => onStatusChange(order, OrderStatus.PAID)} className="flex-1 text-sm bg-yellow-600 hover:bg-yellow-700 text-white py-1 px-2 rounded-md transition-colors">Thanh toán</button>
+                <button onClick={() => onStatusChange(order, OrderStatus.PAID)} className="flex-1 text-xs font-bold bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-2 rounded-md transition-colors">Thanh toán</button>
             }
             {(order.status === OrderStatus.NEW || order.status === OrderStatus.COMPLETED) &&
-                <button onClick={() => onEdit(order)} className="flex-1 text-sm bg-blue-600 hover:bg-blue-700 text-white py-1 px-2 rounded-md transition-colors">Sửa đơn</button>
+                <button onClick={() => onEdit(order)} className="flex-1 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white py-2 px-2 rounded-md transition-colors">Sửa</button>
             }
-            <button onClick={() => onPrint(order)} className="flex-1 text-sm bg-indigo-600 hover:bg-indigo-700 text-white py-1 px-2 rounded-md transition-colors">In Lại</button>
+            <button onClick={() => onPrint(order)} className="flex-1 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-2 rounded-md transition-colors flex justify-center items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                In Lại
+            </button>
             {(order.status === OrderStatus.NEW || order.status === OrderStatus.COMPLETED) &&
-                <button onClick={() => onStatusChange(order, OrderStatus.CANCELLED)} className="flex-1 text-sm bg-red-600 hover:bg-red-700 text-white py-1 px-2 rounded-md transition-colors">Hủy</button>
+                <button onClick={() => onStatusChange(order, OrderStatus.CANCELLED)} className="flex-1 text-xs font-bold bg-red-600 hover:bg-red-700 text-white py-2 px-2 rounded-md transition-colors">Hủy</button>
             }
         </div>
     </div>
@@ -439,7 +521,7 @@ const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, bra
             <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-primary-dark p-4 rounded-lg border border-accent/50 text-center">
                     <p className="text-gray-200 text-sm">TỔNG DOANH THU (NGÀY)</p>
-                    <p className="text-accent text-2xl font-bold">{(dailySummary.totalRevenue || 0).toLocaleString('vi-VN')}đ</p>
+                    <p className="text-accent text-2xl font-bold">{dailySummary.totalRevenue.toLocaleString('vi-VN')}đ</p>
                 </div>
                  <div className="bg-primary-dark p-4 rounded-lg border border-accent/50 text-center">
                     <p className="text-gray-200 text-sm">TỔNG SỐ ĐƠN (NGÀY)</p>

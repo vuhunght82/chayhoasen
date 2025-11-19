@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { MenuItem, Category, Branch } from '../../types';
 import { useToast, useConfirmation } from '../../App';
@@ -56,13 +57,38 @@ const MenuItemModal: React.FC<{
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
-                    if (img.width > 540 || img.height > 540) {
-                        showToast('Kích thước ảnh không được vượt quá 540x540px.', 'error');
+                    // Logic resize ảnh tự động (Max 800x600)
+                    const maxWidth = 800;
+                    const maxHeight = 600;
+                    let width = img.width;
+                    let height = img.height;
+                    let shouldResize = false;
+
+                    if (width > maxWidth || height > maxHeight) {
+                        shouldResize = true;
+                        const ratio = Math.min(maxWidth / width, maxHeight / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+
+                    if (shouldResize) {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                             ctx.drawImage(img, 0, 0, width, height);
+                             // Chất lượng 0.9 jpeg
+                             const dataUrl = canvas.toDataURL('image/jpeg', 0.9); 
+                             setImagePreview(dataUrl);
+                             setFormData(prev => ({ ...prev, imageUrl: dataUrl }));
+                             showToast(`Ảnh đã được tự động điều chỉnh về ${width}x${height}px.`, 'success');
+                        }
                     } else {
+                        // Ảnh nhỏ hơn kích thước tối đa, dùng nguyên gốc
                         const result = event.target?.result;
                         if (typeof result === 'string') {
                             setImagePreview(result);
-                            // Store the base64 string temporarily, it will be uploaded on save
                             setFormData(prev => ({ ...prev, imageUrl: result }));
                         }
                     }
@@ -155,9 +181,9 @@ const MenuItemModal: React.FC<{
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-100">Hình ảnh (tối đa 540x540)</label>
+                        <label className="block text-sm font-medium text-gray-100">Hình ảnh (Tự động chỉnh về tối đa 800x600)</label>
                         <input type="file" accept="image/*" onChange={handleImageChange} className="w-full text-sm text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-primary-dark hover:file:bg-accent-dark"/>
-                        {imagePreview && <img src={imagePreview} alt="Xem trước" className="mt-2 w-24 h-24 object-cover rounded"/>}
+                        {imagePreview && <img src={imagePreview} alt="Xem trước" className="mt-2 w-full max-h-48 object-contain rounded bg-black/20"/>}
                     </div>
                     <div className="flex items-center">
                         <input type="checkbox" id="isOutOfStock" name="isOutOfStock" checked={!!formData.isOutOfStock} onChange={handleChange} className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"/>

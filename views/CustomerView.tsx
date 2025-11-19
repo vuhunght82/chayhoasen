@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Branch, Category, MenuItem, CartItem, Order, OrderStatus, PrinterSettings, PaymentMethod, OrderItem } from '../types';
 import { useToast } from '../App';
@@ -17,8 +18,8 @@ const FloatingActionButtons: React.FC<{
     onCartClick: () => void;
 }> = ({ cartItemCount, onCartClick }) => {
     return (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 lg:right-5 lg:translate-x-0 z-40">
-            {/* Cart Button */}
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 lg:right-5 lg:translate-x-0 z-[95]">
+            {/* Cart Button - Z-index 95 to be above header (z-90) */}
             <button
                 onClick={onCartClick}
                 className="relative w-16 h-16 bg-accent rounded-full flex justify-center items-center text-primary-dark shadow-lg transition-transform hover:scale-110"
@@ -61,7 +62,7 @@ const CartModal: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[60]">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[100]">
             <div className="bg-primary-dark border-2 border-accent rounded-lg p-6 w-full max-w-md text-white shadow-2xl flex flex-col h-[90vh]">
                 <div className="flex justify-between items-center border-b border-accent/50 pb-3 mb-4">
                     <h3 className="text-2xl font-bold text-accent">Giỏ hàng của bạn</h3>
@@ -78,7 +79,7 @@ const CartModal: React.FC<{
                                 <div className="flex justify-between items-center">
                                     <div>
                                         <p className="font-semibold text-white">{item.menuItem.name}</p>
-                                        <p className="text-sm text-gray-200">{(item.menuItem.price || 0).toLocaleString('vi-VN')}đ</p>
+                                        <p className="text-sm text-gray-200">{item.menuItem.price.toLocaleString('vi-VN')}đ</p>
                                     </div>
                                     <div className="flex items-center space-x-3">
                                         <button onClick={() => handleRemoveFromCart(item.menuItem.id)} className="bg-gray-700 w-7 h-7 rounded-full text-white">-</button>
@@ -122,7 +123,7 @@ const CartModal: React.FC<{
                     </div>
                     <div className="flex justify-between font-bold text-xl mb-4">
                         <span className="text-white">Tổng cộng:</span>
-                        <span className="text-accent">{(cartTotal || 0).toLocaleString('vi-VN')}đ</span>
+                        <span className="text-accent">{cartTotal.toLocaleString('vi-VN')}đ</span>
                     </div>
                     <button onClick={onConfirm} disabled={cart.length === 0} className="w-full bg-accent hover:bg-accent-dark text-primary-dark font-bold py-3 rounded-lg text-lg transition-colors duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed">
                         Xác nhận đơn
@@ -140,7 +141,7 @@ const PaymentModal: React.FC<{
 }> = ({ isOpen, onClose, onSelectPayment }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[70]">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[110]">
             <div className="bg-primary-dark border-2 border-accent rounded-lg p-8 w-full max-w-sm text-center shadow-2xl">
                 <h3 className="text-2xl font-bold text-accent mb-6">Chọn hình thức thanh toán</h3>
                 <div className="space-y-4">
@@ -164,7 +165,7 @@ const QRCodeModal: React.FC<{
 }> = ({ isOpen, onClose, qrCodeUrl }) => {
     if(!isOpen) return null;
     return (
-         <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[80]">
+         <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[120]">
             <div className="bg-white p-6 rounded-lg text-center shadow-2xl">
                  <h3 className="text-xl font-bold text-gray-800 mb-4">Quét mã để thanh toán</h3>
                  <img src={qrCodeUrl} alt="Bank QR Code" className="mx-auto w-48 h-48 mb-4 object-contain"/>
@@ -184,14 +185,14 @@ const MenuItemDetailModal: React.FC<{
     if (!item) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[85]">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[130]">
             <div className="bg-primary-dark border-2 border-accent rounded-lg p-6 w-full max-w-lg text-white shadow-2xl flex flex-col relative max-h-[90vh]">
                 <button onClick={onClose} className="absolute top-3 right-3 text-gray-300 hover:text-white text-3xl z-10">&times;</button>
                 <img src={item.imageUrl || PLACEHOLDER_IMAGE} alt={item.name} className="w-full h-64 object-cover rounded-lg mb-4" />
                 <h3 className="text-3xl font-bold text-accent mb-2">{item.name}</h3>
                 <p className="text-gray-100 mb-4 flex-grow overflow-y-auto">{item.description}</p>
                  <div className="mt-auto pt-4 flex justify-end items-center">
-                    <span className="text-2xl font-semibold text-white">{(item.price || 0).toLocaleString('vi-VN')}đ</span>
+                    <span className="text-2xl font-semibold text-white">{item.price.toLocaleString('vi-VN')}đ</span>
                 </div>
             </div>
         </div>
@@ -208,27 +209,34 @@ const MenuItemCard: React.FC<{
     onViewDetails: (item: MenuItem) => void;
 }> = ({ item, onAddToCart, isAdded, onViewDetails }) => {
   return (
-    <div className="bg-primary rounded-lg border border-accent-dark overflow-hidden shadow-lg transform hover:scale-105 transition-transform duration-300 flex flex-col">
-        <div onClick={() => onViewDetails(item)} className="cursor-pointer flex-grow flex flex-col">
-          <img className="w-full h-48 object-cover" src={item.imageUrl || PLACEHOLDER_IMAGE} alt={item.name} />
-          <div className="p-4 flex flex-col flex-grow">
-            <h3 className="text-lg font-bold text-accent">{item.name}</h3>
-            <p className="text-gray-100 text-sm mt-1 flex-grow">{item.description}</p>
+    <div className="bg-primary rounded-lg border border-accent-dark overflow-hidden shadow-lg transform hover:scale-[1.02] transition-transform duration-300 flex flex-col">
+        <div onClick={() => onViewDetails(item)} className="cursor-pointer flex-grow flex flex-col relative group">
+          <img className="w-full h-52 object-cover" src={item.imageUrl || PLACEHOLDER_IMAGE} alt={item.name} />
+          
+          {/* Name overlay with SOLID RED background */}
+          <div className="absolute bottom-0 left-0 right-0 bg-red-700 py-2 px-2 border-t border-accent-dark">
+             <h3 className="text-base sm:text-lg font-bold text-white text-center uppercase tracking-wide leading-tight drop-shadow-md">
+                {item.name}
+             </h3>
           </div>
         </div>
-        <div className="p-4 pt-0 flex justify-between items-center mt-auto">
-          <span className="text-xl font-semibold text-white">{(item.price || 0).toLocaleString('vi-VN')}đ</span>
-          <button 
-            onClick={() => onAddToCart(item)} 
-            disabled={isAdded}
-            className={`font-bold py-2 px-4 rounded-lg transition-colors duration-200 ${
-                isAdded 
-                ? 'bg-green-600 text-white cursor-default' 
-                : 'bg-accent hover:bg-accent-dark text-primary-dark'
-            }`}
-          >
-            {isAdded ? 'Đã thêm ✓' : 'Thêm'}
-          </button>
+        
+        <div className="p-3 flex flex-col flex-grow bg-primary">
+            <p className="text-gray-200 text-sm line-clamp-2 italic mb-3 flex-grow h-10">{item.description}</p>
+             <div className="flex justify-between items-center mt-auto border-t border-accent-dark/30 pt-2">
+                <span className="text-xl font-bold text-accent">{item.price.toLocaleString('vi-VN')}đ</span>
+                <button 
+                    onClick={() => onAddToCart(item)} 
+                    disabled={isAdded}
+                    className={`font-bold py-2 px-3 rounded-full text-sm transition-colors duration-200 shadow-md ${
+                        isAdded 
+                        ? 'bg-green-600 text-white cursor-default' 
+                        : 'bg-accent hover:bg-accent-dark text-primary-dark'
+                    }`}
+                >
+                    {isAdded ? 'Đã thêm' : 'Thêm món'}
+                </button>
+            </div>
         </div>
     </div>
   );
@@ -314,17 +322,16 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
   
   const handleSelectPayment = (method: PaymentMethod) => {
      const newOrderItems: OrderItem[] = cart.map(cartItem => {
-        const orderItem: OrderItem = {
-            menuItemId: cartItem.menuItem.id,
-            quantity: cartItem.quantity,
-            price: cartItem.menuItem.price,
-            name: cartItem.menuItem.name,
-        };
-        // Only add note if it's a non-empty string
-        if (cartItem.note && cartItem.note.trim()) {
-            orderItem.note = cartItem.note.trim();
-        }
-        return orderItem;
+         const itemPayload: OrderItem = {
+             menuItemId: cartItem.menuItem.id,
+             quantity: cartItem.quantity,
+             price: cartItem.menuItem.price,
+             name: cartItem.menuItem.name,
+         };
+         if (cartItem.note && cartItem.note.trim()) {
+             itemPayload.note = cartItem.note.trim();
+         }
+         return itemPayload;
      });
 
      const newOrder: Omit<Order, 'id' | 'timestamp'> = {
@@ -336,11 +343,10 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
         paymentMethod: method,
     };
 
-    // Only add general note if it's a non-empty string
     if (note && note.trim()) {
         newOrder.note = note.trim();
     }
-
+    
     addOrder(newOrder);
 
     if (method === PaymentMethod.TRANSFER) {
@@ -372,7 +378,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
   }, [menuItems, activeCategory, searchTerm, selectedBranch]);
 
   const cartTotal = useMemo(() => {
-    return cart.reduce((total, item) => total + (item.menuItem.price || 0) * item.quantity, 0);
+    return cart.reduce((total, item) => total + item.menuItem.price * item.quantity, 0);
   }, [cart]);
   
   const totalCartItems = useMemo(() => {
@@ -415,12 +421,12 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
         onClose={() => setViewingItem(null)}
       />
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8 pb-24 lg:pb-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-8 flex flex-col lg:flex-row gap-8 pb-24 lg:pb-8">
         {/* Main content */}
         <div className="flex-grow lg:w-2/3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
-                <label htmlFor="branch-select" className="block text-sm font-medium text-gray-100 mb-2">Chọn chi nhánh:</label>
+                <label htmlFor="branch-select" className="block text-sm font-medium text-gray-100 mb-1">Chọn chi nhánh:</label>
                 <select
                   id="branch-select"
                   value={selectedBranch}
@@ -433,7 +439,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
                 </select>
               </div>
                <div>
-                <label htmlFor="search-item" className="block text-sm font-medium text-gray-100 mb-2">Tìm kiếm món ăn:</label>
+                <label htmlFor="search-item" className="block text-sm font-medium text-gray-100 mb-1">Tìm kiếm món ăn:</label>
                 <input
                   id="search-item"
                   type="text"
@@ -444,17 +450,36 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
                 />
               </div>
           </div>
+          
+          {/* Featured Items */}
+          {menuItems.some(item => item.isFeatured && !item.isOutOfStock && item.branchIds.includes(selectedBranch)) && (
+            <div className="mb-6">
+                <h2 className="text-lg font-bold text-accent mb-3 flex items-center gap-2">
+                    <span className="text-xl">★</span> Món ăn nổi bật
+                </h2>
+                <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide snap-x">
+                    {menuItems
+                        .filter(item => item.isFeatured && !item.isOutOfStock && item.branchIds.includes(selectedBranch))
+                        .map(item => (
+                            <div key={item.id} className="min-w-[260px] snap-center">
+                                <MenuItemCard item={item} onAddToCart={handleAddToCart} isAdded={recentlyAdded.includes(item.id)} onViewDetails={setViewingItem} />
+                            </div>
+                        ))
+                    }
+                </div>
+            </div>
+          )}
 
-
-          <div className="mb-6">
-            <div className="flex space-x-2 border-b-2 border-accent-dark overflow-x-auto pb-2">
+          {/* Sticky Category Navigation - Updated Top Position to 60px to match smaller header */}
+          <div className="sticky top-[60px] z-30 bg-primary py-2 -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 shadow-md sm:rounded-lg border-y sm:border border-accent/30">
+            <div className="flex space-x-2 overflow-x-auto pb-1 scrollbar-hide">
               <button
                   key="all"
                   onClick={() => setActiveCategory('all')}
-                  className={`px-4 py-2 text-sm sm:text-base font-medium rounded-t-lg whitespace-nowrap transition-colors duration-200 ${
+                  className={`px-3 py-1.5 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 border ${
                     activeCategory === 'all'
-                      ? 'bg-primary border-t border-x border-accent-dark text-accent'
-                      : 'text-gray-200 hover:bg-green-700'
+                      ? 'bg-accent text-primary-dark font-bold border-accent shadow-sm'
+                      : 'bg-primary-dark text-gray-200 border-transparent hover:bg-primary-light'
                   }`}
                 >
                   Tất cả
@@ -463,10 +488,10 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
                 <button
                   key={category.id}
                   onClick={() => setActiveCategory(category.id)}
-                  className={`px-4 py-2 text-sm sm:text-base font-medium rounded-t-lg whitespace-nowrap transition-colors duration-200 ${
+                  className={`px-3 py-1.5 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 border ${
                     activeCategory === category.id
-                      ? 'bg-primary border-t border-x border-accent-dark text-accent'
-                      : 'text-gray-200 hover:bg-green-700'
+                      ? 'bg-accent text-primary-dark font-bold border-accent shadow-sm'
+                      : 'bg-primary-dark text-gray-200 border-transparent hover:bg-primary-light'
                   }`}
                 >
                   {category.name}
@@ -475,7 +500,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredMenuItems.length > 0 ? filteredMenuItems.map(item => (
               <MenuItemCard key={item.id} item={item} onAddToCart={handleAddToCart} isAdded={recentlyAdded.includes(item.id)} onViewDetails={setViewingItem} />
             )) : (
@@ -484,9 +509,9 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
           </div>
         </div>
 
-        {/* Cart Sidebar - Hidden on mobile */}
+        {/* Cart Sidebar - Updated Top Position to 60px */}
         <div id="cart-sidebar" className="hidden lg:block lg:w-1/3">
-          <div className="sticky top-24 bg-primary rounded-lg border border-accent-dark shadow-lg p-6">
+          <div className="sticky top-[60px] bg-primary rounded-lg border border-accent-dark shadow-lg p-6">
             <h2 className="text-2xl font-bold text-accent border-b border-accent-dark pb-3 mb-4">Giỏ Hàng</h2>
             {cart.length === 0 ? (
               <p className="text-gray-200">Giỏ hàng của bạn đang trống.</p>
@@ -494,23 +519,35 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
               <>
                 <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                   {cart.map(item => (
-                    <div key={item.menuItem.id} className="flex justify-between items-center">
-                      <div>
-                        <p className="font-semibold text-white">{item.menuItem.name}</p>
-                        <p className="text-sm text-gray-200">{(item.menuItem.price || 0).toLocaleString('vi-VN')}đ</p>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <button onClick={() => handleRemoveFromCart(item.menuItem.id)} className="bg-gray-700 w-6 h-6 rounded-full text-white">-</button>
-                        <span>{item.quantity}</span>
-                        <button onClick={() => handleAddToCart(item.menuItem)} className="bg-gray-700 w-6 h-6 rounded-full text-white">+</button>
-                      </div>
+                    <div key={item.menuItem.id} className="flex flex-col bg-primary-dark p-2 rounded-md">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="font-semibold text-white">{item.menuItem.name}</p>
+                                <p className="text-sm text-gray-200">{item.menuItem.price.toLocaleString('vi-VN')}đ</p>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                                <button onClick={() => handleRemoveFromCart(item.menuItem.id)} className="bg-gray-700 w-6 h-6 rounded-full text-white">-</button>
+                                <span>{item.quantity}</span>
+                                <button onClick={() => handleAddToCart(item.menuItem)} className="bg-gray-700 w-6 h-6 rounded-full text-white">+</button>
+                            </div>
+                        </div>
+                        <input 
+                            type="text"
+                            placeholder="Thêm ghi chú..."
+                            value={item.note || ''}
+                            onChange={(e) => {
+                                const newVal = e.target.value;
+                                setCart(prev => prev.map(i => i.menuItem.id === item.menuItem.id ? {...i, note: newVal} : i));
+                            }}
+                            className="w-full bg-primary text-xs border border-accent/30 text-white rounded-md p-1 mt-2 focus:ring-accent focus:border-accent"
+                        />
                     </div>
                   ))}
                 </div>
                 <div className="mt-6 border-t border-accent-dark pt-4">
                   <div className="flex justify-between font-bold text-xl">
                     <span className="text-white">Tổng cộng:</span>
-                    <span className="text-accent">{(cartTotal || 0).toLocaleString('vi-VN')}đ</span>
+                    <span className="text-accent">{cartTotal.toLocaleString('vi-VN')}đ</span>
                   </div>
                   <button onClick={() => setCurrentModal('cart')} className="w-full mt-4 bg-accent hover:bg-accent-dark text-primary-dark font-bold py-3 rounded-lg text-lg transition-colors duration-200">
                     Đặt Món

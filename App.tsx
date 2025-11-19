@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, createContext, useContext, useCallback, ReactNode, useMemo } from 'react';
 import CustomerView from './views/CustomerView';
 import AdminView from './views/AdminView';
@@ -33,7 +34,7 @@ const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[100] space-y-2">
+      <div className="fixed bottom-5 right-5 z-[200] space-y-2">
         {toasts.map(toast => (
           <div
             key={toast.id}
@@ -104,7 +105,7 @@ const ConfirmationProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         <ConfirmationContext.Provider value={{ confirm }}>
             {children}
             {options && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[90]">
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[190]">
                     <div className="bg-primary-dark border-2 border-accent rounded-lg p-8 w-full max-w-sm text-center shadow-2xl">
                         <h3 className="text-2xl font-bold text-accent mb-4">{options.title}</h3>
                         <p className="text-gray-100 mb-6">{options.description}</p>
@@ -133,8 +134,8 @@ type View = 'customer' | 'admin' | 'kitchen';
 // Initial data for seeding the database if it's empty
 const INITIAL_DATA = {
   branches: [
-    { id: 'cn1', name: 'Chi nhánh Quận 1', tableCount: 12 },
-    { id: 'cn2', name: 'Chi nhánh Quận 7', tableCount: 15 },
+    { id: 'cn1', name: 'Chi nhánh Quận 1', latitude: 10.7769, longitude: 106.7009 },
+    { id: 'cn2', name: 'Chi nhánh Quận 7', latitude: 10.7326, longitude: 106.7072 },
   ],
   categories: [
     { id: 'kv', name: 'Món Khai Vị' },
@@ -143,18 +144,23 @@ const INITIAL_DATA = {
     { id: 'du', name: 'Đồ Uống' },
   ],
   menuItems: [
-    { id: 'm1', name: 'Gỏi Cuốn Hoa Sen', categoryId: 'kv', description: 'Gỏi cuốn thanh đạm với rau tươi và đậu hũ.', price: 45000, imageUrl: 'https://picsum.photos/seed/goicuon/540/540', isOutOfStock: false, branchIds: ['cn1', 'cn2'] },
-    { id: 'm2', name: 'Chả Giò Chay', categoryId: 'kv', description: 'Chả giò giòn rụm với nhân rau củ.', price: 55000, imageUrl: 'https://picsum.photos/seed/chagio/540/540', isOutOfStock: false, branchIds: ['cn1'] },
-    { id: 'm3', name: 'Cơm Hạt Sen', categoryId: 'mc', description: 'Cơm chiên với hạt sen, nấm và rau củ.', price: 85000, imageUrl: 'https://picsum.photos/seed/comhatsen/540/540', isOutOfStock: true, branchIds: ['cn2'] },
-    { id: 'm4', name: 'Lẩu Nấm', categoryId: 'mc', description: 'Lẩu nấm chay ngọt thanh, bổ dưỡng.', price: 250000, imageUrl: 'https://picsum.photos/seed/launam/540/540', isOutOfStock: false, branchIds: ['cn1', 'cn2'] },
+    { id: 'm1', name: 'Gỏi Cuốn Hoa Sen', categoryId: 'kv', description: 'Gỏi cuốn thanh đạm với rau tươi và đậu hũ.', price: 45000, imageUrl: 'https://picsum.photos/seed/goicuon/540/540', isOutOfStock: false, isFeatured: true, branchIds: ['cn1', 'cn2'] },
+    { id: 'm2', name: 'Chả Giò Chay', categoryId: 'kv', description: 'Chả giò giòn rụm với nhân rau củ.', price: 55000, imageUrl: 'https://picsum.photos/seed/chagio/540/540', isOutOfStock: false, isFeatured: false, branchIds: ['cn1'] },
+    { id: 'm3', name: 'Cơm Hạt Sen', categoryId: 'mc', description: 'Cơm chiên với hạt sen, nấm và rau củ.', price: 85000, imageUrl: 'https://picsum.photos/seed/comhatsen/540/540', isOutOfStock: true, isFeatured: true, branchIds: ['cn2'] },
+    { id: 'm4', name: 'Lẩu Nấm', categoryId: 'mc', description: 'Lẩu nấm chay ngọt thanh, bổ dưỡng.', price: 250000, imageUrl: 'https://picsum.photos/seed/launam/540/540', isOutOfStock: false, isFeatured: false, branchIds: ['cn1', 'cn2'] },
   ],
   orders: [],
+  admins: {
+    admin1: { username: 'admin', password: '123' }
+  },
   printerSettings: {
     header: 'Nhà hàng Chay Hoa Sen\nĐịa chỉ: 123 Đường ABC, Quận 1, TPHCM\nHotline: 0123.456.789',
     footer: 'Cảm ơn quý khách! Hẹn gặp lại!',
-    qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ChayHoaSen-BankInfo'
+    qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ChayHoaSen-BankInfo',
+    paperSize: '80mm' as const,
+    printerName: 'Máy in mặc định'
   },
-  logoUrl: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%23166534'/%3E%3Cpath d='M50,30 A20,20 0 0,1 50,70 A20,20 0 0,1 50,30 M50,15 A35,35 0 0,0 50,85 A35,35 0 0,0 50,15 M30,50 A20,20 0 0,0 70,50 A20,20 0 0,0 30,50' fill='none' stroke='%23fbbf24' stroke-width='5'/%3E%3C/svg%3E`
+  logoUrl: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%23166534'/%3E%3Cpath d='M50,30 A20,20 0 0,1 50,70 A20,20 0 0,1 50,30 M50,15 A35,35 0 0,0 50,85 A35,35 0 0,0 50,15 M30,50 A20,20 0 0,0 70,50 A20,20 0 0,0 30,50' fill='none' stroke='%23facc15' stroke-width='5'/%3E%3C/svg%3E`
 };
 
 // Helper function to safely convert Firebase list data (which can be an object) to an array.
@@ -174,6 +180,7 @@ const firebaseListToArray = <T,>(data: Record<string, T> | T[] | undefined | nul
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('customer');
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   // States to hold data from Firebase
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -183,6 +190,27 @@ const App: React.FC = () => {
   const [printerSettings, setPrinterSettings] = useState<PrinterSettings>(INITIAL_DATA.printerSettings);
   const [logoUrl, setLogoUrl] = useState<string>(INITIAL_DATA.logoUrl);
   
+  // Check for existing session
+  useEffect(() => {
+    const session = sessionStorage.getItem('chayhoasen_session');
+    if (session === 'active') {
+        setIsLoggedIn(true);
+    }
+  }, []);
+
+  const handleLoginSuccess = () => {
+      setIsLoggedIn(true);
+      sessionStorage.setItem('chayhoasen_session', 'active');
+      setCurrentView('admin'); // Default to admin after login
+  };
+
+  const handleLogout = () => {
+      setIsLoggedIn(false);
+      sessionStorage.removeItem('chayhoasen_session');
+      setCurrentView('customer');
+  }
+
+
   // --- Firebase Data Synchronization ---
   useEffect(() => {
     const dbRef = ref(database);
@@ -192,6 +220,14 @@ const App: React.FC = () => {
       if (!snapshot.exists()) {
         console.log("No data found, seeding initial data...");
         set(dbRef, INITIAL_DATA);
+      } else {
+         // Check specifically for admins in case it was added later
+         get(child(dbRef, 'admins')).then(adminSnap => {
+            if (!adminSnap.exists()) {
+                console.log("No admins found, seeding default admin...");
+                set(child(dbRef, 'admins'), INITIAL_DATA.admins);
+            }
+         });
       }
     }).catch(console.error);
     
@@ -211,7 +247,12 @@ const App: React.FC = () => {
         }));
         setOrders(sanitizedOrders);
         
-        setPrinterSettings(data.printerSettings || INITIAL_DATA.printerSettings);
+        if (data.printerSettings) {
+            setPrinterSettings({
+                ...INITIAL_DATA.printerSettings,
+                ...data.printerSettings
+            });
+        }
         setLogoUrl(data.logoUrl || INITIAL_DATA.logoUrl);
       }
       setLoading(false);
@@ -274,7 +315,7 @@ const App: React.FC = () => {
     <div className="relative">
         <button
             onClick={() => setCurrentView(view)}
-            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+            className={`px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors duration-200 whitespace-nowrap ${
                 currentView === view
                 ? 'bg-accent text-primary-dark font-bold'
                 : 'text-gray-200 hover:bg-primary-light hover:text-white'
@@ -283,7 +324,7 @@ const App: React.FC = () => {
             {label}
         </button>
         {notificationCount && notificationCount > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-600 text-yellow-300 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center border-2 border-primary-dark">
+            <span className="absolute -top-2 -right-2 bg-red-600 text-yellow-300 text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center border border-primary-dark">
                 {notificationCount}
             </span>
         )}
@@ -297,8 +338,17 @@ const App: React.FC = () => {
       </div>
     );
   }
+  
+  // Auth Login Component
+  const LoginView = React.lazy(() => import('./views/LoginView'));
 
   const renderCurrentView = () => {
+    if ((currentView === 'admin' || currentView === 'kitchen') && !isLoggedIn) {
+         return <React.Suspense fallback={<div>Loading...</div>}>
+             <LoginView onLoginSuccess={handleLoginSuccess} />
+         </React.Suspense>
+    }
+
     switch (currentView) {
         case 'customer':
             return <CustomerView 
@@ -323,6 +373,7 @@ const App: React.FC = () => {
                         logoUrl={logoUrl}
                         setLogoUrl={handleSetLogoUrl}
                         resetAllData={resetAllData}
+                        onLogout={handleLogout}
                     />;
         case 'kitchen':
             return <KitchenView 
@@ -341,20 +392,55 @@ const App: React.FC = () => {
     <ToastProvider>
       <ConfirmationProvider>
         <div className="min-h-screen font-sans">
-          <header className="bg-primary-dark shadow-lg sticky top-0 z-40 py-4">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-              {/* Logo */}
-              <div className="w-24 h-24 bg-primary p-1 rounded-full border-4 border-accent-dark shadow-lg flex justify-center items-center mb-4">
-                  <div className="w-full h-full rounded-full relative overflow-hidden">
-                      <img src={logoUrl} alt="Logo Chay Hoa Sen" className="w-full h-full object-cover"/>
+          {/* Header - Compact, Flex Row, Lower Z-index */}
+          <header className="bg-primary-dark shadow-lg sticky top-0 z-[40] py-1">
+            <div className="container mx-auto px-2 sm:px-4 flex flex-row items-center justify-between gap-2">
+              {/* Logo - Left */}
+              <div className="flex items-center gap-2">
+                   <div className="w-10 h-10 lg:w-14 lg:h-14 bg-primary p-0.5 lg:p-1 rounded-full border-2 border-accent-dark shadow-lg flex justify-center items-center relative z-10 flex-shrink-0">
+                      <div className="w-full h-full rounded-full relative overflow-hidden">
+                          <img src={logoUrl} alt="Logo" className="w-full h-full object-cover"/>
+                      </div>
                   </div>
+                  <div className="hidden sm:block text-lg lg:text-xl font-bold text-accent uppercase tracking-wide">Chay Hoa Sen</div>
               </div>
-              {/* Navigation */}
-              <nav className="flex items-center justify-center space-x-2 sm:space-x-4">
-                <NavButton view="customer" label="Trang Đặt Món" />
-                <NavButton view="kitchen" label="Bếp" notificationCount={newOrdersCount} />
-                <NavButton view="admin" label="Quản Lý" notificationCount={newOrdersCount} />
-              </nav>
+              
+              {/* Navigation - Right */}
+              <div className="flex items-center gap-2">
+                <nav className="flex items-center space-x-1">
+                  <NavButton view="customer" label="Đặt Món" />
+                  
+                  {/* Only show Admin/Kitchen if logged in */}
+                  {isLoggedIn && (
+                    <>
+                        <NavButton view="kitchen" label="Bếp" notificationCount={newOrdersCount} />
+                        <NavButton view="admin" label="Quản Lý" notificationCount={newOrdersCount} />
+                    </>
+                  )}
+                </nav>
+
+                {isLoggedIn ? (
+                    <div className="flex items-center gap-2 border-l border-accent/30 pl-2 ml-1">
+                        <button
+                            onClick={handleLogout}
+                            className="px-2 py-1 rounded-md text-xs font-bold bg-red-600 text-white hover:bg-red-500 shadow-sm transition-all duration-200 whitespace-nowrap"
+                        >
+                            Thoát
+                        </button>
+                    </div>
+                ) : (
+                     // Login button for staff
+                    <div className="flex items-center gap-2 border-l border-accent/30 pl-2 ml-1">
+                         <button
+                            onClick={() => setCurrentView('admin')} // Trigger login view
+                            className="p-2 rounded-full text-accent hover:bg-primary-light transition-colors"
+                            title="Đăng nhập Quản trị"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        </button>
+                    </div>
+                )}
+              </div>
             </div>
           </header>
 
