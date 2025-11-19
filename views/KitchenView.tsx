@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Order, OrderStatus, MenuItem, Branch, OrderItem } from '../types';
 
@@ -89,6 +90,7 @@ interface KitchenViewProps {
 const KitchenView: React.FC<KitchenViewProps> = ({ orders, setOrders, menuItems, branches }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const previousOrderCount = useRef(0);
+    const [audioEnabled, setAudioEnabled] = useState(false);
 
     const newOrders = orders
         .filter(o => o.status === OrderStatus.NEW)
@@ -96,10 +98,22 @@ const KitchenView: React.FC<KitchenViewProps> = ({ orders, setOrders, menuItems,
     
     useEffect(() => {
         if (newOrders.length > previousOrderCount.current) {
-            audioRef.current?.play().catch(e => console.error("Audio play failed:", e));
+            if (audioEnabled) {
+                audioRef.current?.play().catch(e => console.error("Audio play failed:", e));
+            }
         }
         previousOrderCount.current = newOrders.length;
-    }, [newOrders.length]);
+    }, [newOrders.length, audioEnabled]);
+
+    const enableAudio = () => {
+        if (audioRef.current) {
+            audioRef.current.play().then(() => {
+                setAudioEnabled(true);
+                audioRef.current?.pause();
+                audioRef.current!.currentTime = 0;
+            }).catch(e => console.error("Could not enable audio:", e));
+        }
+    };
 
     const handleCompleteOrder = (orderId: string) => {
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.COMPLETED } : o));
@@ -108,7 +122,19 @@ const KitchenView: React.FC<KitchenViewProps> = ({ orders, setOrders, menuItems,
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <audio ref={audioRef} src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-            <h1 className="text-3xl font-bold text-accent mb-6">Màn hình Bếp</h1>
+            
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-accent">Màn hình Bếp</h1>
+                {!audioEnabled && (
+                    <button 
+                        onClick={enableAudio}
+                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm font-bold animate-pulse shadow-lg flex items-center gap-2"
+                    >
+                        <span>🔊</span> Bật âm thanh thông báo
+                    </button>
+                )}
+            </div>
+
             {newOrders.length > 0 ? (
                 <div className="flex flex-wrap gap-6">
                     {newOrders.map(order => (

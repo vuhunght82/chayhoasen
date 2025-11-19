@@ -19,7 +19,7 @@ const FloatingActionButtons: React.FC<{
 }> = ({ cartItemCount, onCartClick }) => {
     return (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 lg:right-5 lg:translate-x-0 z-[95]">
-            {/* Cart Button - Z-index 95 to be above header (z-90) */}
+            {/* Cart Button - Z-index 95 to be above header (z-40) */}
             <button
                 onClick={onCartClick}
                 className="relative w-16 h-16 bg-accent rounded-full flex justify-center items-center text-primary-dark shadow-lg transition-transform hover:scale-110"
@@ -470,8 +470,8 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
             </div>
           )}
 
-          {/* Sticky Category Navigation - Updated Top Position to 60px to match smaller header */}
-          <div className="sticky top-[60px] z-30 bg-primary py-2 -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 shadow-md sm:rounded-lg border-y sm:border border-accent/30">
+          {/* Sticky Category Navigation - Updated Top Position to 58px to match smaller header */}
+          <div className="sticky top-[58px] z-30 bg-primary py-2 -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 shadow-md sm:rounded-lg border-y sm:border border-accent/30">
             <div className="flex space-x-2 overflow-x-auto pb-1 scrollbar-hide">
               <button
                   key="all"
@@ -509,9 +509,9 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
           </div>
         </div>
 
-        {/* Cart Sidebar - Updated Top Position to 60px */}
+        {/* Cart Sidebar - Updated Top Position to 58px */}
         <div id="cart-sidebar" className="hidden lg:block lg:w-1/3">
-          <div className="sticky top-[60px] bg-primary rounded-lg border border-accent-dark shadow-lg p-6">
+          <div className="sticky top-[58px] bg-primary rounded-lg border border-accent-dark shadow-lg p-6">
             <h2 className="text-2xl font-bold text-accent border-b border-accent-dark pb-3 mb-4">Giỏ Hàng</h2>
             {cart.length === 0 ? (
               <p className="text-gray-200">Giỏ hàng của bạn đang trống.</p>
