@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Order, OrderStatus, MenuItem, Branch, OrderItem } from '../types';
+import { Order, OrderStatus, MenuItem, Branch, KitchenSettings } from '../types';
 
 const useTimeParts = (timestamp: number) => {
     const [parts, setParts] = useState({ minutes: 0, seconds: 0, totalSeconds: 0 });
@@ -85,25 +85,40 @@ interface KitchenViewProps {
     setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
     menuItems: MenuItem[];
     branches: Branch[];
+    kitchenSettings: KitchenSettings;
 }
 
-const KitchenView: React.FC<KitchenViewProps> = ({ orders, setOrders, menuItems, branches }) => {
+const KitchenView: React.FC<KitchenViewProps> = ({ orders, setOrders, kitchenSettings }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const previousOrderCount = useRef(0);
     const [audioEnabled, setAudioEnabled] = useState(false);
+    const playCountRef = useRef(0); // Track remaining plays
 
     const newOrders = orders
         .filter(o => o.status === OrderStatus.NEW)
         .sort((a, b) => a.timestamp - b.timestamp);
     
+    const handleAudioEnded = () => {
+        if (playCountRef.current > 1) {
+            playCountRef.current -= 1;
+            if (audioRef.current) {
+                audioRef.current.currentTime = 0;
+                audioRef.current.play().catch(e => console.error("Audio replay failed:", e));
+            }
+        }
+    };
+
     useEffect(() => {
         if (newOrders.length > previousOrderCount.current) {
-            if (audioEnabled) {
-                audioRef.current?.play().catch(e => console.error("Audio play failed:", e));
+            if (audioEnabled && audioRef.current) {
+                // Start audio sequence
+                playCountRef.current = kitchenSettings.notificationRepeatCount || 3; // Default to 3
+                audioRef.current.currentTime = 0;
+                audioRef.current.play().catch(e => console.error("Audio play failed:", e));
             }
         }
         previousOrderCount.current = newOrders.length;
-    }, [newOrders.length, audioEnabled]);
+    }, [newOrders.length, audioEnabled, kitchenSettings.notificationRepeatCount]);
 
     const enableAudio = () => {
         if (audioRef.current) {
@@ -121,7 +136,12 @@ const KitchenView: React.FC<KitchenViewProps> = ({ orders, setOrders, menuItems,
     
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <audio ref={audioRef} src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+            <audio 
+                ref={audioRef} 
+                src={kitchenSettings.notificationSoundUrl} 
+                onEnded={handleAudioEnded}
+                preload="auto"
+            ></audio>
             
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-accent">Màn hình Bếp</h1>

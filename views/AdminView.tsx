@@ -5,7 +5,7 @@ import MenuTab from './admin/MenuTab';
 import StatsTab from './admin/StatsTab';
 import SettingsTab from './admin/SettingsTab';
 import DashboardTab from './admin/DashboardTab';
-import { Branch, Category, MenuItem, Order, PrinterSettings } from '../types';
+import { Branch, Category, MenuItem, Order, PrinterSettings, KitchenSettings } from '../types';
 
 type AdminTab = 'dashboard' | 'orders' | 'menu' | 'stats' | 'settings';
 
@@ -20,6 +20,8 @@ interface AdminViewProps {
     setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
     printerSettings: PrinterSettings;
     setPrinterSettings: React.Dispatch<React.SetStateAction<PrinterSettings>>;
+    kitchenSettings: KitchenSettings;
+    setKitchenSettings: React.Dispatch<React.SetStateAction<KitchenSettings>>;
     logoUrl: string;
     setLogoUrl: React.Dispatch<React.SetStateAction<string>>;
     resetAllData: () => void;
@@ -46,6 +48,8 @@ const AdminView: React.FC<AdminViewProps> = (props) => {
                     setBranches={props.setBranches} 
                     printerSettings={props.printerSettings} 
                     setPrinterSettings={props.setPrinterSettings}
+                    kitchenSettings={props.kitchenSettings}
+                    setKitchenSettings={props.setKitchenSettings}
                     logoUrl={props.logoUrl}
                     setLogoUrl={props.setLogoUrl}
                     resetAllData={props.resetAllData}

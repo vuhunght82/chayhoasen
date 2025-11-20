@@ -3,7 +3,7 @@ import React, { useState, useEffect, createContext, useContext, useCallback, Rea
 import CustomerView from './views/CustomerView';
 import AdminView from './views/AdminView';
 import KitchenView from './views/KitchenView';
-import { Branch, Category, MenuItem, Order, OrderStatus, PaymentMethod, PrinterSettings } from './types';
+import { Branch, Category, MenuItem, Order, OrderStatus, PaymentMethod, PrinterSettings, KitchenSettings } from './types';
 import { database } from './firebase';
 import { ref, onValue, set, get, child } from 'firebase/database';
 
@@ -160,6 +160,10 @@ const INITIAL_DATA = {
     paperSize: '80mm' as const,
     printerName: 'Máy in mặc định'
   },
+  kitchenSettings: {
+    notificationSoundUrl: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg',
+    notificationRepeatCount: 3,
+  },
   logoUrl: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%23166534'/%3E%3Cpath d='M50,30 A20,20 0 0,1 50,70 A20,20 0 0,1 50,30 M50,15 A35,35 0 0,0 50,85 A35,35 0 0,0 50,15 M30,50 A20,20 0 0,0 70,50 A20,20 0 0,0 30,50' fill='none' stroke='%23facc15' stroke-width='5'/%3E%3C/svg%3E`
 };
 
@@ -188,6 +192,7 @@ const App: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [printerSettings, setPrinterSettings] = useState<PrinterSettings>(INITIAL_DATA.printerSettings);
+  const [kitchenSettings, setKitchenSettings] = useState<KitchenSettings>(INITIAL_DATA.kitchenSettings);
   const [logoUrl, setLogoUrl] = useState<string>(INITIAL_DATA.logoUrl);
   
   // Check for existing session
@@ -253,6 +258,12 @@ const App: React.FC = () => {
                 ...data.printerSettings
             });
         }
+        if (data.kitchenSettings) {
+            setKitchenSettings({
+                ...INITIAL_DATA.kitchenSettings,
+                ...data.kitchenSettings
+            });
+        }
         setLogoUrl(data.logoUrl || INITIAL_DATA.logoUrl);
       }
       setLoading(false);
@@ -296,6 +307,11 @@ const App: React.FC = () => {
   const handleSetPrinterSettings = (newSettings: PrinterSettings | ((prev: PrinterSettings) => PrinterSettings)) => {
       const dataToSet = typeof newSettings === 'function' ? newSettings(printerSettings) : newSettings;
       set(ref(database, 'printerSettings'), dataToSet);
+  };
+
+  const handleSetKitchenSettings = (newSettings: KitchenSettings | ((prev: KitchenSettings) => KitchenSettings)) => {
+      const dataToSet = typeof newSettings === 'function' ? newSettings(kitchenSettings) : newSettings;
+      set(ref(database, 'kitchenSettings'), dataToSet);
   };
   
   const handleSetLogoUrl = (newUrl: string | ((prev: string) => string)) => {
@@ -370,6 +386,8 @@ const App: React.FC = () => {
                         setOrders={handleSetOrders}
                         printerSettings={printerSettings}
                         setPrinterSettings={handleSetPrinterSettings}
+                        kitchenSettings={kitchenSettings}
+                        setKitchenSettings={handleSetKitchenSettings}
                         logoUrl={logoUrl}
                         setLogoUrl={handleSetLogoUrl}
                         resetAllData={resetAllData}
@@ -381,6 +399,7 @@ const App: React.FC = () => {
                         setOrders={handleSetOrders}
                         menuItems={menuItems}
                         branches={branches}
+                        kitchenSettings={kitchenSettings}
                     />;
         default:
             return null;

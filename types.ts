@@ -69,3 +69,8 @@ export interface PrinterSettings {
     paperSize: '80mm' | '58mm' | 'A4' | 'A5'; // Added paper size
     printerName?: string; // Added reference name
 }
+
+export interface KitchenSettings {
+  notificationSoundUrl: string;
+  notificationRepeatCount?: number;
+}
