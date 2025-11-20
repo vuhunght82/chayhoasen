@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Branch, PrinterSettings, KitchenSettings, OrderItem } from '../../types';
+import { Branch, PrinterSettings, KitchenSettings, OrderItem, SavedSound } from '../../types';
 import { useToast, useConfirmation } from '../../App';
 import { storage } from '../../firebase';
 import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
@@ -164,6 +164,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, printe
     const [qrTable, setQrTable] = useState('1');
     const [generatedQrCodeUrl, setGeneratedQrCodeUrl] = useState('');
     
+    // State for adding new sound
+    const [newSoundName, setNewSoundName] = useState('');
+    const [newSoundFile, setNewSoundFile] = useState<File | null>(null);
+    
     // Corrected dummy data for the bill preview
     const previewOrder = {
         id: 'DEMO789',
@@ -250,29 +254,79 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, printe
         }
     };
 
-     const handleSoundChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 2 * 1024 * 1024) { // 2MB limit
-                showToast('Tệp âm thanh quá lớn (tối đa 2MB).', 'error');
-                return;
-            }
-            setIsUploading(true);
-            try {
-                const dataUrl = await fileToDataUrl(file);
-                const soundRef = storageRef(storage, `kitchen/notification_sound`);
-                const snapshot = await uploadString(soundRef, dataUrl, 'data_url');
-                const downloadURL = await getDownloadURL(snapshot.ref);
-                setKitchenSettings(prev => ({ ...prev, notificationSoundUrl: downloadURL }));
-                showToast('Đã cập nhật âm thanh thông báo.');
-            } catch (error) {
-                console.error("Error uploading sound:", error);
-                showToast('Không thể tải tệp âm thanh.', 'error');
-            } finally {
-                setIsUploading(false);
-            }
+    const handleAddSound = async () => {
+        if (!newSoundName.trim()) {
+            showToast('Vui lòng nhập tên cho âm thanh.', 'error');
+            return;
+        }
+        if (!newSoundFile) {
+            showToast('Vui lòng chọn tệp âm thanh.', 'error');
+            return;
+        }
+        if (newSoundFile.size > 2 * 1024 * 1024) { // 2MB limit
+            showToast('Tệp âm thanh quá lớn (tối đa 2MB).', 'error');
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const dataUrl = await fileToDataUrl(newSoundFile);
+            const soundRef = storageRef(storage, `kitchen/sounds/${Date.now()}_${newSoundFile.name}`);
+            const snapshot = await uploadString(soundRef, dataUrl, 'data_url');
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            
+            const newSound: SavedSound = {
+                id: `sound-${Date.now()}`,
+                name: newSoundName.trim(),
+                url: downloadURL
+            };
+            
+            const currentSounds = kitchenSettings.savedSounds || [];
+            setKitchenSettings(prev => ({
+                ...prev,
+                savedSounds: [...currentSounds, newSound]
+            }));
+            
+            setNewSoundName('');
+            setNewSoundFile(null);
+            // Reset file input visually
+            const fileInput = document.getElementById('sound-file-input') as HTMLInputElement;
+            if (fileInput) fileInput.value = '';
+
+            showToast('Đã thêm âm thanh vào danh sách.');
+        } catch (error) {
+            console.error("Error uploading sound:", error);
+            showToast('Không thể tải tệp âm thanh.', 'error');
+        } finally {
+            setIsUploading(false);
         }
     };
+
+    const handleDeleteSound = (soundId: string) => {
+        confirm({
+            title: 'Xóa âm thanh',
+            description: 'Bạn có chắc muốn xóa âm thanh này khỏi danh sách?',
+            onConfirm: () => {
+                 const currentSounds = kitchenSettings.savedSounds || [];
+                 const soundToDelete = currentSounds.find(s => s.id === soundId);
+                 
+                 // If deleting currently active sound, revert to default if possible
+                 let newActiveUrl = kitchenSettings.notificationSoundUrl;
+                 if (soundToDelete?.url === newActiveUrl) {
+                     const remaining = currentSounds.filter(s => s.id !== soundId);
+                     if (remaining.length > 0) newActiveUrl = remaining[0].url;
+                     else newActiveUrl = ''; 
+                 }
+
+                 setKitchenSettings(prev => ({
+                     ...prev,
+                     notificationSoundUrl: newActiveUrl,
+                     savedSounds: prev.savedSounds?.filter(s => s.id !== soundId)
+                 }));
+                 showToast('Đã xóa âm thanh.');
+            }
+        })
+    }
 
     const handleSaveSettings = () => {
         setPrinterSettings(localSettings);
@@ -481,16 +535,85 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, printe
                 {/* Kitchen Settings */}
                 <div className="bg-primary-dark p-6 rounded-lg border border-accent/50">
                     <h3 className="text-lg font-semibold text-accent mb-4">Cài đặt Bếp</h3>
-                     <div>
-                        <label className="block text-sm font-medium text-gray-100 mb-1">Âm thanh thông báo đơn mới (tối đa 2MB)</label>
-                        <input type="file" accept="audio/*" onChange={handleSoundChange} className="w-full text-sm text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-primary-dark hover:file:bg-accent-dark"/>
-                        <audio key={kitchenSettings.notificationSoundUrl} controls className="mt-2 w-full">
-                            <source src={kitchenSettings.notificationSoundUrl} type="audio/mpeg" />
-                            Trình duyệt của bạn không hỗ trợ audio.
-                        </audio>
+                    
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-100 mb-3">Chọn âm thanh thông báo</label>
+                        <div className="space-y-3 bg-primary p-4 rounded-lg border border-accent/30 max-h-60 overflow-y-auto">
+                            {(kitchenSettings.savedSounds || []).map((sound) => (
+                                <div key={sound.id} className="flex items-center justify-between hover:bg-primary-dark/30 p-2 rounded">
+                                    <div className="flex items-center cursor-pointer flex-grow" onClick={() => setKitchenSettings(prev => ({ ...prev, notificationSoundUrl: sound.url }))}>
+                                        <input
+                                            type="radio"
+                                            name="presetSound"
+                                            id={`sound-${sound.id}`}
+                                            checked={kitchenSettings.notificationSoundUrl === sound.url}
+                                            onChange={() => setKitchenSettings(prev => ({ ...prev, notificationSoundUrl: sound.url }))}
+                                            className="h-4 w-4 text-accent focus:ring-accent border-gray-300 cursor-pointer"
+                                        />
+                                        <label htmlFor={`sound-${sound.id}`} className="ml-3 text-sm text-white cursor-pointer font-medium">{sound.name}</label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                         <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const audio = new Audio(sound.url);
+                                                audio.play().catch(err => console.error("Play error", err));
+                                            }}
+                                            className="text-accent hover:text-white text-xs border border-accent hover:bg-accent/20 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                                        >
+                                            <span>▶</span> Nghe thử
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteSound(sound.id); }}
+                                            className="text-red-500 hover:text-red-400 p-1 rounded hover:bg-red-900/30"
+                                            title="Xóa"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="mb-6 bg-primary p-4 rounded-lg border border-accent/30">
+                         <label className="block text-sm font-bold text-accent mb-3">Thêm âm thanh mới vào danh sách</label>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs text-gray-300 mb-1">Tên hiển thị</label>
+                                <input 
+                                    type="text"
+                                    value={newSoundName}
+                                    onChange={e => setNewSoundName(e.target.value)}
+                                    placeholder="Ví dụ: Chuông báo cháy..."
+                                    className="w-full bg-primary-dark text-white text-sm p-2 rounded border border-accent/30 focus:border-accent"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-300 mb-1">File âm thanh (Max 2MB)</label>
+                                <input 
+                                    id="sound-file-input"
+                                    type="file" 
+                                    accept="audio/*" 
+                                    onChange={e => setNewSoundFile(e.target.files?.[0] || null)}
+                                    className="w-full text-sm text-gray-200 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-accent file:text-primary-dark hover:file:bg-accent-dark"
+                                />
+                            </div>
+                         </div>
+                         <div className="mt-3 text-right">
+                            <button 
+                                onClick={handleAddSound}
+                                disabled={isUploading}
+                                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm disabled:opacity-50"
+                            >
+                                {isUploading ? 'Đang tải lên...' : 'Thêm vào danh sách'}
+                            </button>
+                         </div>
                     </div>
                     
-                    <div className="mt-4">
+                    <div>
                         <label className="block text-sm font-medium text-gray-100 mb-1">Số lần lặp lại âm thanh</label>
                          <input 
                             type="number" 
