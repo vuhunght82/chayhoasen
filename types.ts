@@ -70,7 +70,14 @@ export interface PrinterSettings {
     printerName?: string; // Added reference name
 }
 
+export interface SavedSound {
+  id: string;
+  name: string;
+  url: string;
+}
+
 export interface KitchenSettings {
   notificationSoundUrl: string;
   notificationRepeatCount?: number;
+  savedSounds?: SavedSound[];
 }

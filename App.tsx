@@ -3,7 +3,7 @@ import React, { useState, useEffect, createContext, useContext, useCallback, Rea
 import CustomerView from './views/CustomerView';
 import AdminView from './views/AdminView';
 import KitchenView from './views/KitchenView';
-import { Branch, Category, MenuItem, Order, OrderStatus, PaymentMethod, PrinterSettings, KitchenSettings } from './types';
+import { Branch, Category, MenuItem, Order, OrderStatus, PaymentMethod, PrinterSettings, KitchenSettings, SavedSound } from './types';
 import { database } from './firebase';
 import { ref, onValue, set, get, child } from 'firebase/database';
 
@@ -131,6 +131,14 @@ export const useConfirmation = () => {
 
 type View = 'customer' | 'admin' | 'kitchen';
 
+const DEFAULT_KITCHEN_SOUNDS: SavedSound[] = [
+    { id: 's1', name: 'Chuông ngắn (Mặc định)', url: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' },
+    { id: 's2', name: 'Đồng hồ điện tử', url: 'https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg' },
+    { id: 's3', name: 'Kèn hiệu', url: 'https://actions.google.com/sounds/v1/alarms/bugle_tune.ogg' },
+    { id: 's4', name: 'Chuông tam giác', url: 'https://actions.google.com/sounds/v1/alarms/dinner_bell_triangle.ogg' },
+    { id: 's5', name: 'Đồng hồ cơ', url: 'https://actions.google.com/sounds/v1/alarms/mechanical_clock_ring.ogg' }
+];
+
 // Initial data for seeding the database if it's empty
 const INITIAL_DATA = {
   branches: [
@@ -163,6 +171,7 @@ const INITIAL_DATA = {
   kitchenSettings: {
     notificationSoundUrl: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg',
     notificationRepeatCount: 3,
+    savedSounds: DEFAULT_KITCHEN_SOUNDS
   },
   logoUrl: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%23166534'/%3E%3Cpath d='M50,30 A20,20 0 0,1 50,70 A20,20 0 0,1 50,30 M50,15 A35,35 0 0,0 50,85 A35,35 0 0,0 50,15 M30,50 A20,20 0 0,0 70,50 A20,20 0 0,0 30,50' fill='none' stroke='%23facc15' stroke-width='5'/%3E%3C/svg%3E`
 };
@@ -259,9 +268,14 @@ const App: React.FC = () => {
             });
         }
         if (data.kitchenSettings) {
+             const savedSounds = data.kitchenSettings.savedSounds 
+                ? firebaseListToArray<SavedSound>(data.kitchenSettings.savedSounds)
+                : DEFAULT_KITCHEN_SOUNDS;
+                
             setKitchenSettings({
                 ...INITIAL_DATA.kitchenSettings,
-                ...data.kitchenSettings
+                ...data.kitchenSettings,
+                savedSounds
             });
         }
         setLogoUrl(data.logoUrl || INITIAL_DATA.logoUrl);
