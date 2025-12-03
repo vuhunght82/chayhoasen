@@ -24,6 +24,8 @@ interface AdminViewProps {
     setKitchenSettings: React.Dispatch<React.SetStateAction<KitchenSettings>>;
     logoUrl: string;
     setLogoUrl: React.Dispatch<React.SetStateAction<string>>;
+    themeColor: string;
+    setThemeColor: React.Dispatch<React.SetStateAction<string>>;
     resetAllData: () => void;
     onLogout: () => void;
 }
@@ -52,6 +54,8 @@ const AdminView: React.FC<AdminViewProps> = (props) => {
                     setKitchenSettings={props.setKitchenSettings}
                     logoUrl={props.logoUrl}
                     setLogoUrl={props.setLogoUrl}
+                    themeColor={props.themeColor}
+                    setThemeColor={props.setThemeColor}
                     resetAllData={props.resetAllData}
                 />;
       default:
@@ -75,7 +79,7 @@ const AdminView: React.FC<AdminViewProps> = (props) => {
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Sticky Tab Navigation - Adjusted Top to 60px to match smaller header */}
-      <div className="sticky top-[60px] z-30 bg-primary border border-accent rounded-lg p-4 mb-6 shadow-lg">
+      <div className="sticky top-[60px] z-30 bg-primary border border-accent rounded-lg p-4 mb-6 shadow-lg transition-colors duration-500">
         <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
           <TabButton tabName="dashboard" label="Bảng điều khiển" />
           <TabButton tabName="orders" label="Đơn Hàng" />
@@ -85,7 +89,7 @@ const AdminView: React.FC<AdminViewProps> = (props) => {
         </div>
       </div>
 
-      <div className="bg-primary border border-accent rounded-lg p-6 min-h-[60vh]">
+      <div className="bg-primary border border-accent rounded-lg p-6 min-h-[60vh] transition-colors duration-500">
         {renderTabContent()}
       </div>
     </div>

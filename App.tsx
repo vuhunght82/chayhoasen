@@ -173,7 +173,8 @@ const INITIAL_DATA = {
     notificationRepeatCount: 3,
     savedSounds: DEFAULT_KITCHEN_SOUNDS
   },
-  logoUrl: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%23166534'/%3E%3Cpath d='M50,30 A20,20 0 0,1 50,70 A20,20 0 0,1 50,30 M50,15 A35,35 0 0,0 50,85 A35,35 0 0,0 50,15 M30,50 A20,20 0 0,0 70,50 A20,20 0 0,0 30,50' fill='none' stroke='%23facc15' stroke-width='5'/%3E%3C/svg%3E`
+  logoUrl: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%23166534'/%3E%3Cpath d='M50,30 A20,20 0 0,1 50,70 A20,20 0 0,1 50,30 M50,15 A35,35 0 0,0 50,85 A35,35 0 0,0 50,15 M30,50 A20,20 0 0,0 70,50 A20,20 0 0,0 30,50' fill='none' stroke='%23facc15' stroke-width='5'/%3E%3C/svg%3E`,
+  themeColor: '#15803d' // Default green
 };
 
 // Helper function to safely convert Firebase list data (which can be an object) to an array.
@@ -187,6 +188,31 @@ const firebaseListToArray = <T,>(data: Record<string, T> | T[] | undefined | nul
     }
     // If it's an object, convert its values to an array
     return Object.values(data);
+};
+
+// --- Color Utils ---
+const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+};
+
+const adjustBrightness = (hex: string, percent: number) => {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    
+    return '#' + (
+        0x1000000 + 
+        (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 + 
+        (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 + 
+        (B < 255 ? (B < 1 ? 0 : B) : 255)
+    ).toString(16).slice(1);
 };
 
 
@@ -203,6 +229,7 @@ const App: React.FC = () => {
   const [printerSettings, setPrinterSettings] = useState<PrinterSettings>(INITIAL_DATA.printerSettings);
   const [kitchenSettings, setKitchenSettings] = useState<KitchenSettings>(INITIAL_DATA.kitchenSettings);
   const [logoUrl, setLogoUrl] = useState<string>(INITIAL_DATA.logoUrl);
+  const [themeColor, setThemeColor] = useState<string>(INITIAL_DATA.themeColor);
   
   // Check for existing session
   useEffect(() => {
@@ -223,6 +250,28 @@ const App: React.FC = () => {
       sessionStorage.removeItem('chayhoasen_session');
       setCurrentView('customer');
   }
+
+  // --- Theme Application Logic ---
+  useEffect(() => {
+      const applyTheme = (color: string) => {
+          const rgb = hexToRgb(color);
+          if (rgb) {
+              const darkHex = adjustBrightness(color, -15); // Darken by 15%
+              const lightHex = adjustBrightness(color, 20); // Lighten by 20%
+              
+              const darkRgb = hexToRgb(darkHex);
+              const lightRgb = hexToRgb(lightHex);
+
+              if (darkRgb && lightRgb) {
+                  document.documentElement.style.setProperty('--color-primary', `${rgb.r} ${rgb.g} ${rgb.b}`);
+                  document.documentElement.style.setProperty('--color-primary-dark', `${darkRgb.r} ${darkRgb.g} ${darkRgb.b}`);
+                  document.documentElement.style.setProperty('--color-primary-light', `${lightRgb.r} ${lightRgb.g} ${lightRgb.b}`);
+              }
+          }
+      };
+      
+      applyTheme(themeColor);
+  }, [themeColor]);
 
 
   // --- Firebase Data Synchronization ---
@@ -279,6 +328,7 @@ const App: React.FC = () => {
             });
         }
         setLogoUrl(data.logoUrl || INITIAL_DATA.logoUrl);
+        setThemeColor(data.themeColor || INITIAL_DATA.themeColor);
       }
       setLoading(false);
     });
@@ -331,6 +381,11 @@ const App: React.FC = () => {
   const handleSetLogoUrl = (newUrl: string | ((prev: string) => string)) => {
       const dataToSet = typeof newUrl === 'function' ? newUrl(logoUrl) : newUrl;
       set(ref(database, 'logoUrl'), dataToSet);
+  };
+
+  const handleSetThemeColor = (newColor: string | ((prev: string) => string)) => {
+      const dataToSet = typeof newColor === 'function' ? newColor(themeColor) : newColor;
+      set(ref(database, 'themeColor'), dataToSet);
   };
   
   const resetAllData = () => {
@@ -404,6 +459,8 @@ const App: React.FC = () => {
                         setKitchenSettings={handleSetKitchenSettings}
                         logoUrl={logoUrl}
                         setLogoUrl={handleSetLogoUrl}
+                        themeColor={themeColor}
+                        setThemeColor={handleSetThemeColor}
                         resetAllData={resetAllData}
                         onLogout={handleLogout}
                     />;
@@ -426,7 +483,7 @@ const App: React.FC = () => {
       <ConfirmationProvider>
         <div className="min-h-screen font-sans">
           {/* Header - Compact, Flex Row, Lower Z-index */}
-          <header className="bg-primary-dark shadow-lg sticky top-0 z-[40] py-1">
+          <header className="bg-primary-dark shadow-lg sticky top-0 z-[40] py-1 transition-colors duration-500">
             <div className="container mx-auto px-2 sm:px-4 flex flex-row items-center justify-between gap-2">
               {/* Logo - Left */}
               <div className="flex items-center gap-2">

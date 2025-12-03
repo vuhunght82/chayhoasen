@@ -147,10 +147,12 @@ interface SettingsTabProps {
     setKitchenSettings: (settings: KitchenSettings | ((prev: KitchenSettings) => KitchenSettings)) => void;
     logoUrl: string;
     setLogoUrl: (url: string | ((prev: string) => string)) => void;
+    themeColor: string;
+    setThemeColor: (color: string | ((prev: string) => string)) => void;
     resetAllData: () => void;
 }
 
-const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, printerSettings, setPrinterSettings, kitchenSettings, setKitchenSettings, logoUrl, setLogoUrl, resetAllData }) => {
+const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, printerSettings, setPrinterSettings, kitchenSettings, setKitchenSettings, logoUrl, setLogoUrl, themeColor, setThemeColor, resetAllData }) => {
     const [newBranchName, setNewBranchName] = useState('');
     const [localSettings, setLocalSettings] = useState<PrinterSettings>(printerSettings);
     const { showToast } = useToast();
@@ -383,6 +385,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, printe
         }
     };
     
+    const PRESET_COLORS = [
+        '#15803d', // Original Green
+        '#1e40af', // Blue
+        '#7e22ce', // Purple
+        '#be123c', // Red
+        '#c2410c', // Orange
+        '#0f172a', // Slate/Black
+    ];
+
     return (
         <div>
             <h2 className="text-2xl font-bold text-accent mb-6">Cài Đặt Hệ Thống</h2>
@@ -392,6 +403,46 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, printe
             {isPrinterConfigOpen && <PrinterConfigModal settings={printerSettings} onClose={() => setPrinterConfigOpen(false)} onSave={handleSavePrinterConfig} />}
 
             <div className="space-y-8">
+                {/* Theme & Brand Settings */}
+                <div className="bg-primary-dark p-6 rounded-lg border border-accent/50">
+                    <h3 className="text-lg font-semibold text-accent mb-4">Cài đặt Thương hiệu & Giao diện</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex items-center gap-4">
+                            <img src={logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover border-2 border-accent"/>
+                            <div className="flex-grow">
+                                <label className="block text-sm font-medium text-gray-100 mb-1">Thay đổi Logo</label>
+                                <input type="file" accept="image/*" onChange={handleLogoChange} className="w-full text-sm text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-primary-dark hover:file:bg-accent-dark"/>
+                            </div>
+                        </div>
+                        <div>
+                             <label className="block text-sm font-medium text-gray-100 mb-2">Màu chủ đạo (Nền, Tab, Nút bấm)</label>
+                             <div className="flex flex-wrap gap-3 mb-3">
+                                {PRESET_COLORS.map(color => (
+                                    <button
+                                        key={color}
+                                        onClick={() => setThemeColor(color)}
+                                        className={`w-8 h-8 rounded-full border-2 ${themeColor === color ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                                        style={{ backgroundColor: color }}
+                                        title={color}
+                                    />
+                                ))}
+                             </div>
+                             <div className="flex items-center gap-2">
+                                <input 
+                                    type="color" 
+                                    value={themeColor} 
+                                    onChange={(e) => setThemeColor(e.target.value)}
+                                    className="h-10 w-full rounded cursor-pointer border-0 p-0"
+                                />
+                                <span className="text-sm text-gray-300 font-mono bg-primary px-2 py-1 rounded">{themeColor}</span>
+                             </div>
+                             <p className="text-xs text-gray-400 mt-2">
+                                Màu được chọn sẽ tự động tạo ra các biến thể đậm/nhạt cho toàn bộ ứng dụng.
+                             </p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Branch Management */}
                 <div className="bg-primary-dark p-6 rounded-lg border border-accent/50">
                     <h3 className="text-lg font-semibold text-accent mb-4">Quản lý Chi nhánh</h3>
@@ -409,18 +460,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, printe
                     <div className="flex gap-2">
                         <input value={newBranchName} onChange={e => setNewBranchName(e.target.value)} type="text" placeholder="Tên chi nhánh mới" className="flex-grow bg-primary p-2 rounded border border-accent/50 text-white"/>
                         <button onClick={handleAddBranch} className="bg-primary-light hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Thêm</button>
-                    </div>
-                </div>
-
-                {/* Brand Settings */}
-                <div className="bg-primary-dark p-6 rounded-lg border border-accent/50">
-                    <h3 className="text-lg font-semibold text-accent mb-4">Cài đặt Thương hiệu</h3>
-                    <div className="flex items-center gap-4">
-                        <img src={logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover border-2 border-accent"/>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-100 mb-1">Thay đổi Logo</label>
-                            <input type="file" accept="image/*" onChange={handleLogoChange} className="w-full text-sm text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-primary-dark hover:file:bg-accent-dark"/>
-                        </div>
                     </div>
                 </div>
 

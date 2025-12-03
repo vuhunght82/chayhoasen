@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi">
   <head>
@@ -11,9 +12,9 @@
           extend: {
             colors: {
               primary: {
-                DEFAULT: '#15803d', // green-700
-                dark: '#166534', // green-800
-                light: '#22c55e', // green-500
+                DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)', // Dynamic base color
+                dark: 'rgb(var(--color-primary-dark) / <alpha-value>)', // Dynamic dark shade
+                light: 'rgb(var(--color-primary-light) / <alpha-value>)', // Dynamic light shade
               },
               accent: {
                 DEFAULT: '#fbbf24', // amber-400
@@ -24,6 +25,14 @@
         }
       }
     </script>
+    <style>
+      :root {
+        /* Default Green Theme */
+        --color-primary: 21 128 61;       /* #15803d */
+        --color-primary-dark: 22 101 52;  /* #166534 */
+        --color-primary-light: 34 197 94; /* #22c55e */
+      }
+    </style>
   <script type="importmap">
 {
   "imports": {
@@ -66,7 +75,7 @@
 </style>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-gradient-to-br from-primary-dark to-primary text-gray-100">
+  <body class="bg-gradient-to-br from-primary-dark to-primary text-gray-100 transition-colors duration-500">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   <script type="module" src="/index.tsx"></script>
