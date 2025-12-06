@@ -65,12 +65,11 @@ const CartModal: React.FC<{
     setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
     cartTotal: number;
     tableNumber: string;
-    setTableNumber: (value: string) => void;
     note: string;
     setNote: (value: string) => void;
     onConfirm: () => void;
     onScanQR: () => void;
-}> = ({ isOpen, onClose, cart, setCart, cartTotal, tableNumber, setTableNumber, note, setNote, onConfirm, onScanQR }) => {
+}> = ({ isOpen, onClose, cart, setCart, cartTotal, tableNumber, note, setNote, onConfirm, onScanQR }) => {
     if (!isOpen) return null;
 
     const handleItemNoteChange = (instanceId: string, itemNote: string) => {
@@ -143,15 +142,15 @@ const CartModal: React.FC<{
                 )}
                 <div className="mt-auto pt-4 border-t border-accent/50">
                      <div className="mb-4">
-                        <label htmlFor="modal-table-number" className="block text-sm font-medium text-gray-100 mb-2">Nhập số bàn:</label>
+                        <label htmlFor="modal-table-number" className="block text-sm font-medium text-gray-100 mb-2">Số bàn:</label>
                         <div className="flex items-center gap-2">
                              <input
                                 id="modal-table-number"
-                                type="number"
+                                type="text"
                                 value={tableNumber}
-                                onChange={(e) => setTableNumber(e.target.value)}
-                                placeholder="Ví dụ: 5"
-                                className="flex-grow bg-primary border border-accent/50 text-white rounded-lg p-2 focus:ring-accent focus:border-accent"
+                                readOnly
+                                placeholder="Quét mã QR để nhập bàn"
+                                className="flex-grow bg-primary-dark/50 border border-accent/50 text-white rounded-lg p-2 cursor-not-allowed focus:ring-0 focus:border-accent/50"
                             />
                             <button onClick={onScanQR} className="p-2 bg-primary-light hover:bg-green-600 rounded-lg" title="Quét mã QR tại bàn">
                                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h-1m-1-6v1m-1 1h.01M5 12h1m-1 6h1m6-1V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v1m-1 11h.01M12 12h.01M12 12v.01M12 12l-.01-.01M12 12l.01.01M12 12l-.01.01M5 5h1.5a1.5 1.5 0 010 3H5V5zm14 0h-1.5a1.5 1.5 0 000 3H19V5zm-14 14h1.5a1.5 1.5 0 000-3H5v3zm14 0h-1.5a1.5 1.5 0 010-3H19v3z"></path></svg>
@@ -287,10 +286,9 @@ const ToppingSelectionModal: React.FC<{
         });
     };
 
-    // Flatten the array of selected toppings from all groups into a single array.
-    // FIX: The `reduce` method with an empty array `[]` as an initial value can lead to incorrect type inference in TypeScript.
-    // Using `flat()` is a more modern, readable, and type-safe way to flatten an array of arrays.
-    const finalToppings: Topping[] = Object.values(selectedToppings).flat();
+    // FIX: The .flat() method was causing type inference issues in this environment.
+    // Replaced with .reduce() and a typed initial value for robust array flattening.
+    const finalToppings: Topping[] = Object.values(selectedToppings).reduce((acc, val) => acc.concat(val), [] as Topping[]);
     const toppingsTotal = finalToppings.reduce((sum, t) => sum + t.price, 0);
     const finalPrice = menuItem.price + toppingsTotal;
     
@@ -567,8 +565,8 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
         showToast('Vui lòng chọn chi nhánh.', 'error');
         return;
     }
-    if (!tableNumber || isNaN(parseInt(tableNumber)) || parseInt(tableNumber) <= 0) {
-        showToast('Vui lòng nhập số bàn hợp lệ.', 'error');
+    if (!tableNumber) {
+        showToast('Vui lòng quét mã QR tại bàn để tiếp tục.', 'error');
         return;
     }
     setCurrentModal('payment');
@@ -716,7 +714,6 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
         setCart={setCart}
         cartTotal={cartTotal}
         tableNumber={tableNumber}
-        setTableNumber={setTableNumber}
         note={note}
         setNote={setNote}
         onConfirm={handleConfirmOrder}
