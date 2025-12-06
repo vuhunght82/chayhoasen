@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Branch, Category, MenuItem, CartItem, Order, OrderStatus, PrinterSettings, PaymentMethod, OrderItem, Topping, ToppingGroup } from '../types';
 import { useToast } from '../App';
@@ -188,7 +189,7 @@ const PaymentModal: React.FC<{
 }> = ({ isOpen, onClose, onSelectPayment }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[110]">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[160]">
             <div className="bg-primary-dark border-2 border-accent rounded-lg p-8 w-full max-w-sm text-center shadow-2xl">
                 <h3 className="text-2xl font-bold text-accent mb-6">Chọn hình thức thanh toán</h3>
                 <div className="space-y-4">
@@ -212,7 +213,7 @@ const QRCodeModal: React.FC<{
 }> = ({ isOpen, onClose, qrCodeUrl }) => {
     if(!isOpen) return null;
     return (
-         <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[120]">
+         <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[170]">
             <div className="bg-white p-6 rounded-lg text-center shadow-2xl">
                  <h3 className="text-xl font-bold text-gray-800 mb-4">Quét mã để thanh toán</h3>
                  <img src={qrCodeUrl} alt="Bank QR Code" className="mx-auto w-48 h-48 mb-4 object-contain"/>
@@ -286,9 +287,8 @@ const ToppingSelectionModal: React.FC<{
         });
     };
 
-    // FIX: The .flat() method was causing type inference issues in this environment.
-    // Replaced with .reduce() and a typed initial value for robust array flattening.
-    const finalToppings: Topping[] = Object.values(selectedToppings).reduce((acc, val) => acc.concat(val), [] as Topping[]);
+    // FIX: Explicitly cast Object.values to Topping[][] to avoid type inference issues.
+    const finalToppings: Topping[] = (Object.values(selectedToppings) as Topping[][]).reduce((acc, val) => acc.concat(val), [] as Topping[]);
     const toppingsTotal = finalToppings.reduce((sum, t) => sum + t.price, 0);
     const finalPrice = menuItem.price + toppingsTotal;
     
@@ -376,6 +376,7 @@ const QRScannerModal: React.FC<{
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationFrameId = useRef<number>();
+    const streamRef = useRef<MediaStream | null>(null);
 
     const scan = () => {
         if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
@@ -402,44 +403,73 @@ const QRScannerModal: React.FC<{
     };
 
     useEffect(() => {
-        let stream: MediaStream | null = null;
-        
+        let isMounted = true;
+
         const startCamera = async () => {
-            try {
-                // First, try to get the ideal camera (rear-facing)
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            } catch (err) {
-                console.warn("Could not get rear camera, trying any camera...", err);
-                try {
-                    // If that fails, try getting any camera
-                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                } catch (finalError) {
-                    console.error("Camera Error:", finalError);
-                    onError("Không thể truy cập camera. Vui lòng cấp quyền và thử lại.");
-                    return; // Exit if no camera is found
-                }
+            // Stop any previous streams to avoid "Device in use"
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
             }
 
-            // If a stream was successfully obtained
-            if (stream && videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.setAttribute("playsinline", "true");
-                videoRef.current.play();
-                animationFrameId.current = requestAnimationFrame(scan);
+            try {
+                let stream: MediaStream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                } catch (err) {
+                    console.warn("Could not get rear camera, trying any camera...", err);
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                }
+
+                if (!isMounted) {
+                    stream.getTracks().forEach(track => track.stop());
+                    return;
+                }
+
+                streamRef.current = stream;
+
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    videoRef.current.setAttribute("playsinline", "true");
+                    // Using await play() handles the promise returned by play, catching errors like "The play() request was interrupted"
+                    try {
+                        await videoRef.current.play();
+                        animationFrameId.current = requestAnimationFrame(scan);
+                    } catch (playError) {
+                         console.error("Video play error:", playError);
+                    }
+                }
+            } catch (err: any) {
+                console.error("Camera Error:", err);
+                if (isMounted) {
+                    if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                        onError("Camera đang bận hoặc được sử dụng bởi ứng dụng khác.");
+                    } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        onError("Vui lòng cấp quyền truy cập camera trong cài đặt trình duyệt.");
+                    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                         onError("Không tìm thấy camera trên thiết bị này.");
+                    } else {
+                        onError("Lỗi truy cập camera: " + (err.message || "Không xác định"));
+                    }
+                }
             }
         };
 
         startCamera();
 
         return () => {
+            isMounted = false;
             if (animationFrameId.current) {
                 cancelAnimationFrame(animationFrameId.current);
             }
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+            }
+             if (videoRef.current) {
+                videoRef.current.srcObject = null;
             }
         };
-    }, []);
+    }, []); 
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-90 flex flex-col justify-center items-center z-[150]">
@@ -580,8 +610,13 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
              quantity: cartItem.quantity,
              price: cartItem.menuItem.price + toppingsPrice, // Price with toppings
              name: cartItem.menuItem.name,
-             selectedToppings: cartItem.selectedToppings,
          };
+         
+         // Only add selectedToppings if it exists and is not empty to avoid undefined error in Firebase
+         if (cartItem.selectedToppings && cartItem.selectedToppings.length > 0) {
+            itemPayload.selectedToppings = cartItem.selectedToppings;
+         }
+
          if (cartItem.note && cartItem.note.trim()) {
              itemPayload.note = cartItem.note.trim();
          }
