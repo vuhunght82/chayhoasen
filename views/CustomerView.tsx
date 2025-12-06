@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Branch, Category, MenuItem, CartItem, Order, OrderStatus, PrinterSettings, PaymentMethod, OrderItem, Topping, ToppingGroup } from '../types';
 import { useToast } from '../App';
@@ -119,7 +118,7 @@ const CartModal: React.FC<{
                                          {item.selectedToppings && item.selectedToppings.length > 0 && (
                                             <ul className="text-xs text-gray-300 pl-4 list-disc mt-1">
                                                 {item.selectedToppings.map(t => 
-                                                    <li key={t.id}>{t.name} (+t.price.toLocaleString('vi-VN')}đ)</li>
+                                                    <li key={t.id}>{t.name} (+{t.price.toLocaleString('vi-VN')}đ)</li>
                                                 )}
                                             </ul>
                                         )}
@@ -289,7 +288,9 @@ const ToppingSelectionModal: React.FC<{
     };
 
     // Flatten the array of selected toppings from all groups into a single array.
-    const finalToppings: Topping[] = Object.values(selectedToppings).reduce((acc, val) => acc.concat(val), []);
+    // FIX: The `reduce` method with an empty array `[]` as an initial value can lead to incorrect type inference in TypeScript.
+    // Using `flat()` is a more modern, readable, and type-safe way to flatten an array of arrays.
+    const finalToppings: Topping[] = Object.values(selectedToppings).flat();
     const toppingsTotal = finalToppings.reduce((sum, t) => sum + t.price, 0);
     const finalPrice = menuItem.price + toppingsTotal;
     
