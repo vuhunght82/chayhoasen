@@ -52,12 +52,17 @@ const KitchenOrderTicket: React.FC<{
                     </div>
                 )}
                 <ul className="space-y-2">
-                    {order.items.map((item) => (
-                        <li key={`${item.menuItemId}-${item.note || ''}`} className="border-b border-gray-300 pb-2">
+                    {order.items.map((item, index) => (
+                        <li key={`${item.menuItemId}-${index}`} className="border-b border-gray-300 pb-2">
                             <div className="flex items-start">
                                 <span className="font-bold text-2xl mr-3">{item.quantity}x</span>
                                 <span className="text-lg flex-grow">{item.name}</span>
                             </div>
+                            {item.selectedToppings && item.selectedToppings.length > 0 && (
+                                <div className="mt-1 ml-10 text-sm text-blue-800">
+                                    + {item.selectedToppings.map(t => t.name).join(', ')}
+                                </div>
+                            )}
                             {item.note && (
                                 <div className="mt-1 ml-10 p-1.5 bg-yellow-100 border border-yellow-300 rounded-md">
                                     <p className="text-yellow-800 text-sm font-semibold">{item.note}</p>

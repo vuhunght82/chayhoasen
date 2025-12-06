@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { MenuItem, Category, Branch } from '../../types';
+import { MenuItem, Category, Branch, Topping, ToppingGroup } from '../../types';
 import { useToast, useConfirmation } from '../../App';
 import { storage } from '../../firebase';
 import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
@@ -12,6 +12,10 @@ interface MenuTabProps {
     categories: Category[];
     setCategories: (categories: Category[] | ((prev: Category[]) => Category[])) => void;
     branches: Branch[];
+    toppings: Topping[];
+    setToppings: (toppings: Topping[] | ((prev: Topping[]) => Topping[])) => void;
+    toppingGroups: ToppingGroup[];
+    setToppingGroups: (groups: ToppingGroup[] | ((prev: ToppingGroup[]) => ToppingGroup[])) => void;
 }
 
 const PLACEHOLDER_IMAGE = "https://via.placeholder.com/540x540.png?text=Chay+Hoa+Sen";
@@ -21,12 +25,13 @@ const MenuItemModal: React.FC<{
     item: Partial<MenuItem> | null;
     categories: Category[];
     branches: Branch[];
+    toppingGroups: ToppingGroup[];
     onClose: () => void;
     onSave: (item: MenuItem) => void;
-}> = ({ item, categories, branches, onClose, onSave }) => {
+}> = ({ item, categories, branches, toppingGroups, onClose, onSave }) => {
     const { showToast } = useToast();
     const defaultCategoryId = categories.length > 0 ? categories[0].id : '';
-    const [formData, setFormData] = useState<Partial<MenuItem>>(item || { name: '', categoryId: defaultCategoryId, description: '', price: 0, imageUrl: '', isOutOfStock: false, branchIds: [] });
+    const [formData, setFormData] = useState<Partial<MenuItem>>(item || { name: '', categoryId: defaultCategoryId, description: '', price: 0, imageUrl: '', isOutOfStock: false, branchIds: [], toppingGroupIds: [] });
     const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null);
     const [isUploading, setIsUploading] = useState(false);
     
@@ -50,6 +55,16 @@ const MenuItemModal: React.FC<{
         });
     };
 
+    const handleToppingGroupChange = (groupId: string) => {
+        setFormData(prev => {
+            const currentGroupIds = prev.toppingGroupIds || [];
+            const newGroupIds = currentGroupIds.includes(groupId)
+                ? currentGroupIds.filter(id => id !== groupId)
+                : [...currentGroupIds, groupId];
+            return { ...prev, toppingGroupIds: newGroupIds };
+        });
+    };
+
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -57,7 +72,6 @@ const MenuItemModal: React.FC<{
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
-                    // Logic resize ảnh tự động (Max 800x600)
                     const maxWidth = 800;
                     const maxHeight = 600;
                     let width = img.width;
@@ -78,14 +92,12 @@ const MenuItemModal: React.FC<{
                         const ctx = canvas.getContext('2d');
                         if (ctx) {
                              ctx.drawImage(img, 0, 0, width, height);
-                             // Chất lượng 0.9 jpeg
                              const dataUrl = canvas.toDataURL('image/jpeg', 0.9); 
                              setImagePreview(dataUrl);
                              setFormData(prev => ({ ...prev, imageUrl: dataUrl }));
                              showToast(`Ảnh đã được tự động điều chỉnh về ${width}x${height}px.`, 'success');
                         }
                     } else {
-                        // Ảnh nhỏ hơn kích thước tối đa, dùng nguyên gốc
                         const result = event.target?.result;
                         if (typeof result === 'string') {
                             setImagePreview(result);
@@ -118,7 +130,6 @@ const MenuItemModal: React.FC<{
         setIsUploading(true);
         let finalItemData = { ...formData };
 
-        // Check if the image is a new base64 upload
         if (finalItemData.imageUrl && finalItemData.imageUrl.startsWith('data:image/')) {
             try {
                 const imageRef = storageRef(storage, `menuItems/${Date.now()}-${formData.name}`);
@@ -142,7 +153,6 @@ const MenuItemModal: React.FC<{
             <div className="bg-primary-dark border border-accent rounded-lg p-6 w-full max-w-lg">
                 <h3 className="text-xl font-bold text-accent mb-4">{formData.id ? 'Sửa Món Ăn' : 'Thêm Món Mới'}</h3>
                 <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
-                    {/* Form fields... */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-100">Tên món</label>
@@ -176,6 +186,23 @@ const MenuItemModal: React.FC<{
                                         className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
                                     />
                                     <label htmlFor={`branch-${branch.id}`} className="ml-2 block text-sm text-gray-100">{branch.name}</label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-100">Nhóm Topping (Món thêm)</label>
+                        <div className="mt-1 grid grid-cols-2 gap-2 p-3 bg-primary border border-accent/50 rounded-md max-h-32 overflow-y-auto">
+                            {toppingGroups.map(group => (
+                                <div key={group.id} className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id={`topping-group-${group.id}`}
+                                        checked={formData.toppingGroupIds?.includes(group.id) || false}
+                                        onChange={() => handleToppingGroupChange(group.id)}
+                                        className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
+                                    />
+                                    <label htmlFor={`topping-group-${group.id}`} className="ml-2 block text-sm text-gray-100">{group.name}</label>
                                 </div>
                             ))}
                         </div>
@@ -271,6 +298,211 @@ const CategoryManagerModal: React.FC<{
     )
 }
 
+const ToppingManagerModal: React.FC<{
+    toppings: Topping[];
+    toppingGroups: ToppingGroup[];
+    onClose: () => void;
+    onSaveToppings: (toppings: Topping[]) => void;
+    onSaveToppingGroups: (groups: ToppingGroup[]) => void;
+}> = ({ toppings, toppingGroups, onClose, onSaveToppings, onSaveToppingGroups }) => {
+    const [localToppings, setLocalToppings] = useState<Topping[]>(toppings);
+    const [localGroups, setLocalGroups] = useState<ToppingGroup[]>(toppingGroups);
+    const [newTopping, setNewTopping] = useState({ name: '', price: '' });
+    const [newGroup, setNewGroup] = useState({ name: '', min: '0', max: '1', selectedToppingIds: [] as string[] });
+    const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+    const { confirm } = useConfirmation();
+
+    const isEditing = editingGroupId !== null;
+
+    const handleAddTopping = () => {
+        if (newTopping.name.trim() && newTopping.price !== '') {
+            const newT: Topping = {
+                id: `t-${Date.now()}`,
+                name: newTopping.name,
+                price: parseFloat(newTopping.price)
+            };
+            setLocalToppings(prev => [...prev, newT]);
+            setNewTopping({ name: '', price: '' });
+        }
+    };
+    
+    const handleDeleteTopping = (id: string) => {
+         confirm({
+            title: 'Xác nhận xóa Topping',
+            description: 'Bạn có chắc muốn xóa topping này? Nó cũng sẽ bị xóa khỏi tất cả các nhóm.',
+            onConfirm: () => {
+                setLocalToppings(prev => prev.filter(t => t.id !== id));
+                setLocalGroups(prev => prev.map(g => ({
+                    ...g,
+                    toppingIds: g.toppingIds.filter(tId => tId !== id)
+                })));
+            }
+        });
+    };
+
+    const handleAddOrUpdateGroup = () => {
+        if (isEditing) {
+            handleUpdateGroup();
+        } else {
+            handleAddGroup();
+        }
+    }
+
+    const handleAddGroup = () => {
+        if (newGroup.name.trim()) {
+            const newG: ToppingGroup = {
+                id: `tg-${Date.now()}`,
+                name: newGroup.name,
+                minSelection: parseInt(newGroup.min) || 0,
+                maxSelection: parseInt(newGroup.max) || 1,
+                toppingIds: newGroup.selectedToppingIds,
+            };
+            setLocalGroups(prev => [...prev, newG]);
+            setNewGroup({ name: '', min: '0', max: '1', selectedToppingIds: [] });
+        }
+    };
+
+     const handleUpdateGroup = () => {
+        if (!editingGroupId) return;
+        setLocalGroups(prev => prev.map(g => 
+            g.id === editingGroupId 
+            ? { ...g, name: newGroup.name, minSelection: parseInt(newGroup.min) || 0, maxSelection: parseInt(newGroup.max) || 1, toppingIds: newGroup.selectedToppingIds }
+            : g
+        ));
+        handleCancelEditGroup();
+    };
+
+    const handleDeleteGroup = (id: string) => {
+        confirm({
+            title: 'Xác nhận xóa Nhóm',
+            description: 'Bạn có chắc muốn xóa nhóm topping này?',
+            onConfirm: () => {
+                setLocalGroups(prev => prev.filter(g => g.id !== id));
+            }
+        });
+    };
+
+    const handleStartEditGroup = (group: ToppingGroup) => {
+        setEditingGroupId(group.id);
+        setNewGroup({
+            name: group.name,
+            min: group.minSelection.toString(),
+            max: group.maxSelection.toString(),
+            selectedToppingIds: [...group.toppingIds]
+        });
+    };
+
+    const handleCancelEditGroup = () => {
+        setEditingGroupId(null);
+        setNewGroup({ name: '', min: '0', max: '1', selectedToppingIds: [] });
+    };
+
+    const handleMoveGroup = (index: number, direction: 'up' | 'down') => {
+        if ((direction === 'up' && index === 0) || (direction === 'down' && index === localGroups.length - 1)) {
+            return;
+        }
+        const newGroups = [...localGroups];
+        const item = newGroups.splice(index, 1)[0];
+        newGroups.splice(direction === 'up' ? index - 1 : index + 1, 0, item);
+        setLocalGroups(newGroups);
+    };
+
+    const handleGroupToppingChange = (toppingId: string) => {
+        setNewGroup(prev => {
+            const isSelected = prev.selectedToppingIds.includes(toppingId);
+            return {
+                ...prev,
+                selectedToppingIds: isSelected
+                    ? prev.selectedToppingIds.filter(id => id !== toppingId)
+                    : [...prev.selectedToppingIds, toppingId]
+            };
+        });
+    };
+    
+    const handleSave = () => {
+        onSaveToppings(localToppings);
+        onSaveToppingGroups(localGroups);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
+            <div className="bg-primary-dark border border-accent rounded-lg p-6 w-full max-w-3xl text-white">
+                <h3 className="text-xl font-bold text-accent mb-4">Quản Lý Topping (Món thêm)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[80vh] overflow-y-auto pr-2">
+                    {/* Toppings Section */}
+                    <div className="bg-primary p-4 rounded-lg">
+                        <h4 className="font-semibold mb-3">Danh sách Topping</h4>
+                        <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                            {localToppings.map(t => (
+                                <div key={t.id} className="flex justify-between items-center bg-primary-dark p-2 rounded">
+                                    <span>{t.name} ({t.price.toLocaleString('vi-VN')}đ)</span>
+                                    <button onClick={() => handleDeleteTopping(t.id)} className="text-red-500 text-sm">Xóa</button>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex gap-2">
+                            <input value={newTopping.name} onChange={e => setNewTopping({ ...newTopping, name: e.target.value })} placeholder="Tên topping" className="flex-grow bg-primary-dark p-2 text-sm rounded border border-accent/50"/>
+                            <input type="number" value={newTopping.price} onChange={e => setNewTopping({ ...newTopping, price: e.target.value })} placeholder="Giá" className="w-24 bg-primary-dark p-2 text-sm rounded border border-accent/50"/>
+                            <button onClick={handleAddTopping} className="bg-green-600 px-3 rounded">+</button>
+                        </div>
+                    </div>
+
+                    {/* Topping Groups Section */}
+                    <div className="bg-primary p-4 rounded-lg">
+                        <h4 className="font-semibold mb-3">Nhóm Topping</h4>
+                         <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                             {localGroups.map((g, index) => (
+                                <div key={g.id} className="flex justify-between items-center bg-primary-dark p-2 rounded">
+                                    <span className="truncate">{g.name} (Chọn {g.minSelection}-{g.maxSelection})</span>
+                                    <div className="flex items-center gap-2 text-sm flex-shrink-0 ml-2">
+                                        <button onClick={() => handleMoveGroup(index, 'up')} disabled={index === 0} className="disabled:opacity-20 text-white">↑</button>
+                                        <button onClick={() => handleMoveGroup(index, 'down')} disabled={index === localGroups.length - 1} className="disabled:opacity-20 text-white">↓</button>
+                                        <button onClick={() => handleStartEditGroup(g)} className="text-blue-400 hover:text-blue-300">Sửa</button>
+                                        <button onClick={() => handleDeleteGroup(g.id)} className="text-red-500 hover:text-red-400">Xóa</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div>
+                            <h5 className="font-semibold mb-2 text-gray-200">{isEditing ? `Sửa nhóm: ${localGroups.find(g => g.id === editingGroupId)?.name}` : 'Thêm Nhóm Mới'}</h5>
+                            <input value={newGroup.name} onChange={e => setNewGroup({ ...newGroup, name: e.target.value })} placeholder="Tên nhóm mới" className="w-full bg-primary-dark p-2 text-sm rounded border border-accent/50 mb-2"/>
+                            <div className="flex gap-2 mb-2">
+                                <input type="number" value={newGroup.min} onChange={e => setNewGroup({ ...newGroup, min: e.target.value })} placeholder="Tối thiểu" className="w-1/2 bg-primary-dark p-2 text-sm rounded border border-accent/50"/>
+                                <input type="number" value={newGroup.max} onChange={e => setNewGroup({ ...newGroup, max: e.target.value })} placeholder="Tối đa" className="w-1/2 bg-primary-dark p-2 text-sm rounded border border-accent/50"/>
+                            </div>
+                             <div className="p-2 border border-accent/50 rounded max-h-32 overflow-y-auto mb-2">
+                                {localToppings.map(t => (
+                                    <div key={t.id} className="flex items-center">
+                                        <input type="checkbox" id={`group-topping-${t.id}`} checked={newGroup.selectedToppingIds.includes(t.id)} onChange={() => handleGroupToppingChange(t.id)} className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"/>
+                                        <label htmlFor={`group-topping-${t.id}`} className="ml-2">{t.name}</label>
+                                    </div>
+                                ))}
+                            </div>
+                             <div className="flex gap-2 mt-2">
+                                {isEditing ? (
+                                    <>
+                                        <button onClick={handleUpdateGroup} type="button" className="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded text-white font-bold">Cập nhật</button>
+                                        <button onClick={handleCancelEditGroup} type="button" className="w-full bg-gray-600 hover:bg-gray-700 p-2 rounded text-white font-bold">Hủy</button>
+                                    </>
+                                ) : (
+                                    <button onClick={handleAddGroup} className="w-full bg-green-600 hover:bg-green-700 p-2 rounded text-white font-bold">Thêm Nhóm</button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-6">
+                    <button type="button" onClick={onClose} className="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-lg">Hủy</button>
+                    <button type="button" onClick={handleSave} className="bg-accent hover:bg-accent-dark text-primary-dark font-bold py-2 px-4 rounded-lg">Lưu Toàn Bộ</button>
+                </div>
+            </div>
+        </div>
+    )
+};
+
+
 const MenuItemCardAdmin: React.FC<{
     item: MenuItem;
     categoryName: string;
@@ -311,9 +543,10 @@ const MenuItemCardAdmin: React.FC<{
 );
 
 
-const MenuTab: React.FC<MenuTabProps> = ({ menuItems, setMenuItems, categories, setCategories, branches }) => {
+const MenuTab: React.FC<MenuTabProps> = ({ menuItems, setMenuItems, categories, setCategories, branches, toppings, setToppings, toppingGroups, setToppingGroups }) => {
     const [isMenuModalOpen, setMenuModalOpen] = useState(false);
     const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
+    const [isToppingModalOpen, setIsToppingModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<Partial<MenuItem> | null>(null);
     const [filtersVisible, setFiltersVisible] = useState(true);
     const { showToast } = useToast();
@@ -327,7 +560,7 @@ const MenuTab: React.FC<MenuTabProps> = ({ menuItems, setMenuItems, categories, 
             setEditingItem(item);
         } else {
             const defaultCategory = categories.length > 0 ? categories[0].id : '';
-            setEditingItem({ name: '', categoryId: defaultCategory, description: '', price: 0, imageUrl: '', isOutOfStock: false, branchIds: [] });
+            setEditingItem({ name: '', categoryId: defaultCategory, description: '', price: 0, imageUrl: '', isOutOfStock: false, branchIds: [], toppingGroupIds: [] });
         }
         setMenuModalOpen(true);
     };
@@ -386,8 +619,9 @@ const MenuTab: React.FC<MenuTabProps> = ({ menuItems, setMenuItems, categories, 
 
     return (
         <div>
-            {isMenuModalOpen && editingItem && <MenuItemModal item={editingItem} categories={categories} branches={branches} onClose={() => setMenuModalOpen(false)} onSave={handleSaveMenuItem} />}
+            {isMenuModalOpen && editingItem && <MenuItemModal item={editingItem} categories={categories} branches={branches} toppingGroups={toppingGroups} onClose={() => setMenuModalOpen(false)} onSave={handleSaveMenuItem} />}
             {isCategoryModalOpen && <CategoryManagerModal categories={categories} onClose={() => setCategoryModalOpen(false)} onSave={handleSaveCategories}/>}
+            {isToppingModalOpen && <ToppingManagerModal toppings={toppings} toppingGroups={toppingGroups} onClose={() => setIsToppingModalOpen(false)} onSaveToppings={setToppings} onSaveToppingGroups={setToppingGroups} />}
             
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-accent">Quản Lý Thực Đơn</h2>
@@ -397,6 +631,9 @@ const MenuTab: React.FC<MenuTabProps> = ({ menuItems, setMenuItems, categories, 
                     </button>
                     <button onClick={() => setCategoryModalOpen(true)} className="bg-primary-light hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
                         Quản Lý Danh Mục
+                    </button>
+                    <button onClick={() => setIsToppingModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Quản Lý Topping
                     </button>
                 </div>
             </div>

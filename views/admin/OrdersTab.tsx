@@ -45,10 +45,14 @@ const OrderDetailsModal: React.FC<{
                 <div className="space-y-3 flex-grow overflow-y-auto pr-2">
                     {order.items.map((item, index) => (
                          <div key={index} className="bg-primary p-3 rounded-md">
-                            <div className="flex justify-between items-center">
+                            <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="font-semibold">{item.name}</p>
-                                    <p className="text-sm text-gray-200">{item.quantity} x {(item.price || 0).toLocaleString('vi-VN')}đ</p>
+                                    <p className="font-semibold">{item.quantity}x {item.name}</p>
+                                    {item.selectedToppings && item.selectedToppings.length > 0 && (
+                                        <ul className="text-xs text-gray-300 pl-4 list-disc mt-1">
+                                            {item.selectedToppings.map(t => <li key={t.id}>{t.name} (+{t.price.toLocaleString('vi-VN')}đ)</li>)}
+                                        </ul>
+                                    )}
                                 </div>
                                 <p className="font-semibold text-accent">{((item.price || 0) * item.quantity).toLocaleString('vi-VN')}đ</p>
                             </div>
@@ -167,14 +171,29 @@ const BillPreviewModal: React.FC<{
                                 </thead>
                                 <tbody>
                                     {order.items.map((item, index) => (
-                                        <tr key={index}>
-                                            <td className="py-1 pr-1 align-top">
-                                                <div className="font-semibold">{item.name}</div>
-                                                {item.note && <div className="text-[10px] italic text-gray-800">- {item.note}</div>}
-                                            </td>
-                                            <td className="text-center py-1 align-top">{item.quantity}</td>
-                                            <td className="text-right py-1 align-top font-medium">{((item.price || 0) * item.quantity).toLocaleString('vi-VN')}</td>
-                                        </tr>
+                                        <React.Fragment key={index}>
+                                            <tr>
+                                                <td className="py-1 pr-1 align-top font-semibold">{item.name}</td>
+                                                <td className="text-center py-1 align-top">{item.quantity}</td>
+                                                <td className="text-right py-1 align-top font-medium">{((item.price || 0) * item.quantity).toLocaleString('vi-VN')}</td>
+                                            </tr>
+                                            {item.selectedToppings && item.selectedToppings.length > 0 && (
+                                                <tr>
+                                                    <td colSpan={3} className="pt-0 pb-1 pl-4">
+                                                        <div className="text-[10px] italic text-gray-800">
+                                                            + {item.selectedToppings.map(t => `${t.name} (${t.price.toLocaleString('vi-VN')})`).join(', ')}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            {item.note && (
+                                                 <tr>
+                                                    <td colSpan={3} className="pt-0 pb-1 pl-4">
+                                                        <div className="text-[10px] italic text-gray-800">- Ghi chú: {item.note}</div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
                                     ))}
                                 </tbody>
                             </table>
@@ -290,7 +309,7 @@ const OrderEditModal: React.FC<{
     
     const handleAddItem = (itemToAdd: MenuItem) => {
         const newItems = [...editedOrder.items];
-        const existingItemIndex = newItems.findIndex(i => i.menuItemId === itemToAdd.id && !i.note); // only merge if no note
+        const existingItemIndex = newItems.findIndex(i => i.menuItemId === itemToAdd.id && !i.note && !i.selectedToppings); // only merge if no note/toppings
         
         if (existingItemIndex > -1) {
             newItems[existingItemIndex].quantity += 1;
@@ -333,10 +352,15 @@ const OrderEditModal: React.FC<{
                             <p className="text-gray-200 text-center py-4">Đơn hàng trống. Hãy thêm món.</p>
                         ) : editedOrder.items.map((item, index) => (
                             <div key={index} className="bg-primary p-3 rounded-md">
-                                <div className="flex justify-between items-center">
+                                <div className="flex justify-between items-start">
                                     <div>
                                         <p className="font-semibold">{item.name}</p>
-                                        <p className="text-sm text-gray-200">{((item.price || 0) * item.quantity).toLocaleString('vi-VN')}đ</p>
+                                        {item.selectedToppings && item.selectedToppings.length > 0 && (
+                                            <ul className="text-xs text-gray-300 pl-4 list-disc mt-1">
+                                                {item.selectedToppings.map(t => <li key={t.id}>{t.name}</li>)}
+                                            </ul>
+                                        )}
+                                        <p className="text-sm text-gray-200 mt-1">{((item.price || 0)).toLocaleString('vi-VN')}đ</p>
                                     </div>
                                     <div className="flex items-center space-x-3">
                                         <button onClick={() => handleItemQuantityChange(index, -1)} className="bg-gray-700 w-7 h-7 rounded-full text-white">-</button>

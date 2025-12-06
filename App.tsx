@@ -3,7 +3,7 @@ import React, { useState, useEffect, createContext, useContext, useCallback, Rea
 import CustomerView from './views/CustomerView';
 import AdminView from './views/AdminView';
 import KitchenView from './views/KitchenView';
-import { Branch, Category, MenuItem, Order, OrderStatus, PaymentMethod, PrinterSettings, KitchenSettings, SavedSound } from './types';
+import { Branch, Category, MenuItem, Order, OrderStatus, PaymentMethod, PrinterSettings, KitchenSettings, SavedSound, Topping, ToppingGroup } from './types';
 import { database } from './firebase';
 import { ref, onValue, set, get, child } from 'firebase/database';
 
@@ -142,8 +142,8 @@ const DEFAULT_KITCHEN_SOUNDS: SavedSound[] = [
 // Initial data for seeding the database if it's empty
 const INITIAL_DATA = {
   branches: [
-    { id: 'cn1', name: 'Chi nhánh Quận 1', latitude: 10.7769, longitude: 106.7009 },
-    { id: 'cn2', name: 'Chi nhánh Quận 7', latitude: 10.7326, longitude: 106.7072 },
+    { id: 'cn1', name: 'Chi nhánh Quận 1', latitude: 10.7769, longitude: 106.7009, allowedDistance: 100 },
+    { id: 'cn2', name: 'Chi nhánh Quận 7', latitude: 10.7326, longitude: 106.7072, allowedDistance: 150 },
   ],
   categories: [
     { id: 'kv', name: 'Món Khai Vị' },
@@ -151,11 +151,23 @@ const INITIAL_DATA = {
     { id: 'tm', name: 'Tráng Miệng' },
     { id: 'du', name: 'Đồ Uống' },
   ],
+  toppings: [
+    { id: 't1', name: 'Size S', price: 0 },
+    { id: 't2', name: 'Size M', price: 5000 },
+    { id: 't3', name: 'Size L', price: 10000 },
+    { id: 't4', name: 'Trân châu đen', price: 5000 },
+    { id: 't5', name: 'Thạch trái cây', price: 7000 },
+  ],
+  toppingGroups: [
+    { id: 'tg1', name: 'Chọn Size', minSelection: 1, maxSelection: 1, toppingIds: ['t1', 't2', 't3'] },
+    { id: 'tg2', name: 'Món Thêm', minSelection: 0, maxSelection: 3, toppingIds: ['t4', 't5'] },
+  ],
   menuItems: [
     { id: 'm1', name: 'Gỏi Cuốn Hoa Sen', categoryId: 'kv', description: 'Gỏi cuốn thanh đạm với rau tươi và đậu hũ.', price: 45000, imageUrl: 'https://picsum.photos/seed/goicuon/540/540', isOutOfStock: false, isFeatured: true, branchIds: ['cn1', 'cn2'] },
     { id: 'm2', name: 'Chả Giò Chay', categoryId: 'kv', description: 'Chả giò giòn rụm với nhân rau củ.', price: 55000, imageUrl: 'https://picsum.photos/seed/chagio/540/540', isOutOfStock: false, isFeatured: false, branchIds: ['cn1'] },
     { id: 'm3', name: 'Cơm Hạt Sen', categoryId: 'mc', description: 'Cơm chiên với hạt sen, nấm và rau củ.', price: 85000, imageUrl: 'https://picsum.photos/seed/comhatsen/540/540', isOutOfStock: true, isFeatured: true, branchIds: ['cn2'] },
     { id: 'm4', name: 'Lẩu Nấm', categoryId: 'mc', description: 'Lẩu nấm chay ngọt thanh, bổ dưỡng.', price: 250000, imageUrl: 'https://picsum.photos/seed/launam/540/540', isOutOfStock: false, isFeatured: false, branchIds: ['cn1', 'cn2'] },
+    { id: 'm5', name: 'Trà Sữa Trân Châu', categoryId: 'du', description: 'Trà sữa Đài Loan đậm vị trà.', price: 35000, imageUrl: 'https://picsum.photos/seed/trasua/540/540', isOutOfStock: false, isFeatured: true, branchIds: ['cn1', 'cn2'], toppingGroupIds: ['tg1', 'tg2'] },
   ],
   orders: [],
   admins: {
@@ -226,6 +238,8 @@ const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [toppings, setToppings] = useState<Topping[]>([]);
+  const [toppingGroups, setToppingGroups] = useState<ToppingGroup[]>([]);
   const [printerSettings, setPrinterSettings] = useState<PrinterSettings>(INITIAL_DATA.printerSettings);
   const [kitchenSettings, setKitchenSettings] = useState<KitchenSettings>(INITIAL_DATA.kitchenSettings);
   const [logoUrl, setLogoUrl] = useState<string>(INITIAL_DATA.logoUrl);
@@ -300,7 +314,24 @@ const App: React.FC = () => {
       if (data) {
         setBranches(firebaseListToArray(data.branches));
         setCategories(firebaseListToArray(data.categories));
-        setMenuItems(firebaseListToArray(data.menuItems));
+        setToppings(firebaseListToArray(data.toppings));
+
+        // Sanitize menuItems to ensure branchIds and toppingGroupIds are always arrays
+        const rawMenuItems = firebaseListToArray<MenuItem>(data.menuItems);
+        const sanitizedMenuItems = rawMenuItems.map(item => ({
+            ...item,
+            branchIds: item.branchIds || [],
+            toppingGroupIds: item.toppingGroupIds || []
+        }));
+        setMenuItems(sanitizedMenuItems);
+        
+        // Sanitize toppingGroups to ensure toppingIds is always an array
+        const rawToppingGroups = firebaseListToArray<ToppingGroup>(data.toppingGroups);
+        const sanitizedToppingGroups = rawToppingGroups.map(group => ({
+            ...group,
+            toppingIds: group.toppingIds || []
+        }));
+        setToppingGroups(sanitizedToppingGroups);
         
         // Sanitize orders to ensure 'items' is always an array
         const rawOrders = firebaseListToArray<Order>(data.orders);
@@ -361,6 +392,16 @@ const App: React.FC = () => {
   const handleSetCategories = (newCategories: Category[] | ((prev: Category[]) => Category[])) => {
       const dataToSet = typeof newCategories === 'function' ? newCategories(categories) : newCategories;
       set(ref(database, 'categories'), dataToSet);
+  };
+
+  const handleSetToppings = (newToppings: Topping[] | ((prev: Topping[]) => Topping[])) => {
+      const dataToSet = typeof newToppings === 'function' ? newToppings(toppings) : newToppings;
+      set(ref(database, 'toppings'), dataToSet);
+  };
+  
+  const handleSetToppingGroups = (newToppingGroups: ToppingGroup[] | ((prev: ToppingGroup[]) => ToppingGroup[])) => {
+      const dataToSet = typeof newToppingGroups === 'function' ? newToppingGroups(toppingGroups) : newToppingGroups;
+      set(ref(database, 'toppingGroups'), dataToSet);
   };
   
   const handleSetBranches = (newBranches: Branch[] | ((prev: Branch[]) => Branch[])) => {
@@ -440,6 +481,8 @@ const App: React.FC = () => {
                         branches={branches}
                         categories={categories}
                         menuItems={menuItems}
+                        toppings={toppings}
+                        toppingGroups={toppingGroups}
                         addOrder={addOrder}
                         printerSettings={printerSettings}
                     />;
@@ -451,6 +494,10 @@ const App: React.FC = () => {
                         setCategories={handleSetCategories}
                         menuItems={menuItems}
                         setMenuItems={handleSetMenuItems}
+                        toppings={toppings}
+                        setToppings={handleSetToppings}
+                        toppingGroups={toppingGroups}
+                        setToppingGroups={handleSetToppingGroups}
                         orders={orders}
                         setOrders={handleSetOrders}
                         printerSettings={printerSettings}

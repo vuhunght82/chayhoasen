@@ -4,11 +4,26 @@ export interface Branch {
   name: string;
   latitude?: number;
   longitude?: number;
+  allowedDistance?: number;
 }
 
 export interface Category {
   id: string;
   name: string;
+}
+
+export interface Topping {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export interface ToppingGroup {
+  id: string;
+  name: string;
+  minSelection: number;
+  maxSelection: number; // Use a large number for "unlimited"
+  toppingIds: string[];
 }
 
 export interface MenuItem {
@@ -21,12 +36,15 @@ export interface MenuItem {
   isOutOfStock?: boolean;
   isFeatured?: boolean;
   branchIds: string[];
+  toppingGroupIds?: string[];
 }
 
 export interface CartItem {
+  instanceId: string; // Unique ID for each item instance in the cart
   menuItem: MenuItem;
   quantity: number;
   note?: string;
+  selectedToppings?: Topping[];
 }
 
 export enum OrderStatus {
@@ -47,6 +65,7 @@ export interface OrderItem {
     price: number; // Price at the time of order
     name: string; // Name at the time of order
     note?: string;
+    selectedToppings?: Topping[];
 }
 
 

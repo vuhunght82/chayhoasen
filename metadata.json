@@ -1,5 +1,8 @@
 {
   "name": "Quản lý Chay Hoa Sen",
   "description": "Một ứng dụng web để quản lý và đặt món cho nhà hàng Chay Hoa Sen, bao gồm quản lý thực đơn, đơn hàng, thống kê doanh thu và cài đặt chi nhánh.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
 }

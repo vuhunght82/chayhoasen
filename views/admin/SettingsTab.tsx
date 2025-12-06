@@ -8,13 +8,14 @@ import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storag
 interface BranchEditModalProps {
     branch: Branch;
     onClose: () => void;
-    onSave: (branchId: string, newName: string, latitude?: number, longitude?: number) => void;
+    onSave: (branchId: string, newName: string, latitude?: number, longitude?: number, allowedDistance?: number) => void;
 }
 
 const BranchEditModal: React.FC<BranchEditModalProps> = ({ branch, onClose, onSave }) => {
     const [name, setName] = useState(branch.name);
     const [latitude, setLatitude] = useState(branch.latitude?.toString() || '');
     const [longitude, setLongitude] = useState(branch.longitude?.toString() || '');
+    const [distance, setDistance] = useState(branch.allowedDistance?.toString() || '100');
 
     const handleSave = () => {
         if (name.trim()) {
@@ -22,7 +23,8 @@ const BranchEditModal: React.FC<BranchEditModalProps> = ({ branch, onClose, onSa
                 branch.id, 
                 name.trim(),
                 latitude ? parseFloat(latitude) : undefined,
-                longitude ? parseFloat(longitude) : undefined
+                longitude ? parseFloat(longitude) : undefined,
+                distance ? parseInt(distance, 10) : 100
             );
         }
     }
@@ -62,6 +64,17 @@ const BranchEditModal: React.FC<BranchEditModalProps> = ({ branch, onClose, onSa
                                 className="w-full bg-primary p-2 rounded border border-accent/50 text-white"
                             />
                         </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-100 mb-1">Phạm vi quét QR hợp lệ (mét)</label>
+                        <input 
+                            type="number" 
+                            value={distance}
+                            onChange={(e) => setDistance(e.target.value)}
+                            placeholder="Ví dụ: 100"
+                            className="w-full bg-primary p-2 rounded border border-accent/50 text-white"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Khoảng cách tối đa cho phép từ vị trí khách hàng đến chi nhánh để xác nhận đơn hàng.</p>
                     </div>
                 </div>
                  <div className="flex justify-end gap-3 pt-6">
@@ -205,8 +218,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, printe
         });
     };
     
-    const handleSaveBranch = (branchId: string, newName: string, latitude?: number, longitude?: number) => {
-        setBranches(prev => prev.map(b => b.id === branchId ? { ...b, name: newName, latitude, longitude } : b));
+    const handleSaveBranch = (branchId: string, newName: string, latitude?: number, longitude?: number, allowedDistance?: number) => {
+        setBranches(prev => prev.map(b => b.id === branchId ? { ...b, name: newName, latitude, longitude, allowedDistance } : b));
         setEditingBranch(null);
         showToast('Đã cập nhật thông tin chi nhánh.');
     };
@@ -346,8 +359,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, printe
             showToast('Vui lòng chọn chi nhánh và nhập số bàn.', 'error');
             return;
         }
-        const currentUrl = window.location.origin + window.location.pathname;
-        const qrData = `${currentUrl}?branchId=${qrBranch}&table=${qrTable}`;
+        const branch = branches.find(b => b.id === qrBranch);
+        if (!branch || !branch.latitude || !branch.longitude) {
+            showToast('Chi nhánh được chọn chưa có tọa độ. Vui lòng cập nhật trong phần Sửa Chi Nhánh.', 'error');
+            return;
+        }
+
+        const qrData = `${branch.latitude},${branch.longitude}-${qrTable}`;
         
         const url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
         setGeneratedQrCodeUrl(url);
