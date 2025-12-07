@@ -6,7 +6,7 @@ import MenuTab from './admin/MenuTab';
 import StatsTab from './admin/StatsTab';
 import SettingsTab from './admin/SettingsTab';
 import DashboardTab from './admin/DashboardTab';
-import { Branch, Category, MenuItem, Order, PrinterSettings, KitchenSettings, Topping, ToppingGroup, CustomerSettings } from '../types';
+import { Branch, Category, MenuItem, Order, PrinterSettings, KitchenSettings, Topping, ToppingGroup, CustomerSettings, PrintStation } from '../types';
 
 type AdminTab = 'dashboard' | 'orders' | 'menu' | 'stats' | 'settings';
 
@@ -31,6 +31,8 @@ interface AdminViewProps {
     setLogoUrl: React.Dispatch<React.SetStateAction<string>>;
     themeColor: string;
     setThemeColor: React.Dispatch<React.SetStateAction<string>>;
+    printStations: PrintStation[];
+    setPrintStations: React.Dispatch<React.SetStateAction<PrintStation[]>>;
     resetAllData: () => void;
     onLogout: () => void;
 }
@@ -44,7 +46,7 @@ const AdminView: React.FC<AdminViewProps> = (props) => {
       case 'dashboard':
         return <DashboardTab orders={props.orders} menuItems={props.menuItems} />;
       case 'orders':
-        return <OrdersTab orders={props.orders} setOrders={props.setOrders} menuItems={props.menuItems} branches={props.branches} />;
+        return <OrdersTab orders={props.orders} setOrders={props.setOrders} menuItems={props.menuItems} branches={props.branches} printStations={props.printStations} />;
       case 'menu':
         return <MenuTab 
                     menuItems={props.menuItems} 
@@ -71,6 +73,8 @@ const AdminView: React.FC<AdminViewProps> = (props) => {
                     setLogoUrl={props.setLogoUrl}
                     themeColor={props.themeColor}
                     setThemeColor={props.setThemeColor}
+                    printStations={props.printStations}
+                    setPrintStations={props.setPrintStations}
                     resetAllData={props.resetAllData}
                 />;
       default:

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Branch, PrinterSettings, KitchenSettings, OrderItem, SavedSound, CustomerSettings } from '../../types';
+import { Branch, PrinterSettings, KitchenSettings, OrderItem, SavedSound, CustomerSettings, PrintStation } from '../../types';
 import { useToast, useConfirmation } from '../../App';
 import { storage } from '../../firebase';
 import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
@@ -106,10 +106,12 @@ interface SettingsTabProps {
     setLogoUrl: (url: string | ((prev: string) => string)) => void;
     themeColor: string;
     setThemeColor: (color: string | ((prev: string) => string)) => void;
+    printStations: PrintStation[];
+    setPrintStations: (stations: PrintStation[] | ((prev: PrintStation[]) => PrintStation[])) => void;
     resetAllData: () => void;
 }
 
-const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, kitchenSettings, setKitchenSettings, customerSettings, setCustomerSettings, logoUrl, setLogoUrl, themeColor, setThemeColor, resetAllData }) => {
+const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, kitchenSettings, setKitchenSettings, customerSettings, setCustomerSettings, logoUrl, setLogoUrl, themeColor, setThemeColor, printStations, setPrintStations, resetAllData }) => {
     const [newBranchName, setNewBranchName] = useState('');
     const { showToast } = useToast();
     const { confirm } = useConfirmation();
@@ -126,6 +128,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, kitche
 
     const [selectedBranchIdForSettings, setSelectedBranchIdForSettings] = useState<string>(branches[0]?.id || '');
     const [localPrinterSettings, setLocalPrinterSettings] = useState<PrinterSettings | undefined>(undefined);
+    
+    // State for managing Print Stations
+    const [editingStation, setEditingStation] = useState<Partial<PrintStation> | null>(null);
 
     useEffect(() => {
         const branch = branches.find(b => b.id === selectedBranchIdForSettings);
@@ -347,6 +352,34 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, kitche
             }
         }
     };
+
+    const handleSavePrintStation = (station: Partial<PrintStation>) => {
+        if (!station.name || !station.ipAddress) {
+            showToast('Tên và địa chỉ IP là bắt buộc.', 'error');
+            return;
+        }
+        if (station.id) { // Update
+            setPrintStations(prev => prev.map(s => s.id === station.id ? { ...s, ...station } as PrintStation : s));
+        } else { // Add
+            const newStation: PrintStation = {
+                id: `ps-${Date.now()}`,
+                name: station.name,
+                ipAddress: station.ipAddress,
+                port: station.port || 9100,
+                type: 'thermal-receipt',
+            };
+            setPrintStations(prev => [...prev, newStation]);
+        }
+        setEditingStation(null);
+    };
+
+    const handleDeletePrintStation = (id: string) => {
+        confirm({
+            title: "Xóa Trạm In",
+            description: "Bạn có chắc chắn muốn xóa trạm in này?",
+            onConfirm: () => setPrintStations(prev => prev.filter(s => s.id !== id)),
+        });
+    };
     
     const PRESET_COLORS = [
         '#15803d', // Original Green
@@ -422,6 +455,41 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, kitche
                     <div className="flex gap-2">
                         <input value={newBranchName} onChange={e => setNewBranchName(e.target.value)} type="text" placeholder="Tên chi nhánh mới" className="flex-grow bg-primary p-2 rounded border border-accent/50 text-white"/>
                         <button onClick={handleAddBranch} className="bg-primary-light hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Thêm</button>
+                    </div>
+                </div>
+
+                {/* Print Station Management */}
+                <div className="bg-primary-dark p-6 rounded-lg border border-accent/50">
+                    <h3 className="text-lg font-semibold text-accent mb-4">Quản lý Trạm In (Cloud Print)</h3>
+                     <div className="mb-4 p-4 bg-primary rounded-lg border border-accent/30 text-sm">
+                        <p className="font-bold mb-2 text-accent">Trạm In là gì?</p>
+                        <p className="text-gray-200">Trạm In là một máy tính (PC, laptop, Raspberry Pi) chạy một chương trình nhỏ để nhận lệnh in từ hệ thống và gửi đến máy in nhiệt cục bộ. Điều này cho phép bạn in hóa đơn từ bất kỳ thiết bị nào (iPad, điện thoại) một cách nhanh chóng và đáng tin cậy.</p>
+                        <p className="mt-2 text-gray-200">Xem hướng dẫn cài đặt chương trình cho Trạm In trong thư mục <code className="bg-gray-700 px-1 rounded text-accent">print-agent</code> của dự án.</p>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                        {printStations.map(station => (
+                            <div key={station.id} className="flex justify-between items-center bg-primary p-2 rounded">
+                                <div>
+                                    <span className="font-semibold">{station.name}</span>
+                                    <span className="text-xs text-gray-300 ml-2">{station.ipAddress}:{station.port}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setEditingStation(station)} className="text-sm text-accent hover:underline">Sửa</button>
+                                    <button onClick={() => handleDeletePrintStation(station.id)} className="text-sm text-red-500 hover:underline">Xóa</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                     <div className="mt-4 border-t border-accent/50 pt-4">
+                        <h4 className="font-semibold mb-2">{editingStation?.id ? 'Sửa Trạm In' : 'Thêm Trạm In mới'}</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
+                            <input value={editingStation?.name || ''} onChange={e => setEditingStation(prev => ({ ...prev, name: e.target.value }))} placeholder="Tên trạm (ví dụ: In Bếp)" className="bg-primary p-2 rounded border border-accent/50 text-white"/>
+                            <input value={editingStation?.ipAddress || ''} onChange={e => setEditingStation(prev => ({ ...prev, ipAddress: e.target.value }))} placeholder="Địa chỉ IP máy in (192...)" className="bg-primary p-2 rounded border border-accent/50 text-white"/>
+                            <div className="flex gap-2">
+                                <button onClick={() => handleSavePrintStation(editingStation || {})} className="flex-1 bg-primary-light hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">{editingStation?.id ? 'Cập nhật' : 'Thêm'}</button>
+                                {editingStation && <button onClick={() => setEditingStation(null)} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">Hủy</button>}
+                            </div>
+                        </div>
                     </div>
                 </div>
 

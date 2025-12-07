@@ -1,7 +1,10 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Order, OrderStatus, MenuItem, PrinterSettings, Branch, PaymentMethod, OrderItem } from '../../types';
+import { Order, OrderStatus, MenuItem, PrinterSettings, Branch, PaymentMethod, OrderItem, PrintStation, PrintJob } from '../../types';
 import { useToast, useConfirmation } from '../../App';
+import { ref, push, set } from 'firebase/database';
+import { database } from '../../firebase';
+
 
 const getStatusColor = (status: OrderStatus) => {
     switch (status) {
@@ -178,59 +181,9 @@ const BillPreviewModal: React.FC<{
     if (!order) return null;
 
     const handlePrint = () => {
-        const previewElement = document.getElementById('bill-preview');
-        if (previewElement) {
-            // Determine width based on paper size settings
-            let paperWidth = '100%'; 
-            if (settings.paperSize === '80mm') paperWidth = '72mm';
-            if (settings.paperSize === '58mm') paperWidth = '48mm';
-            if (settings.paperSize === 'A4') paperWidth = '210mm';
-            if (settings.paperSize === 'A5') paperWidth = '148mm';
-
-            // Open a new window
-            const printWindow = window.open('', '_blank', 'width=800,height=600');
-            if (printWindow) {
-                printWindow.document.open();
-                printWindow.document.write('<!DOCTYPE html>');
-                printWindow.document.write('<html><head><title>Hóa Đơn</title>');
-                // Use Tailwind CDN
-                printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
-                
-                // Inject custom print styles
-                printWindow.document.write(`
-                    <style>
-                        @page { size: auto; margin: 0mm; }
-                        body { 
-                            margin: 0; 
-                            padding: 5mm; 
-                            width: ${paperWidth}; 
-                            font-family: monospace; 
-                            background-color: white;
-                            color: black;
-                        }
-                        /* Force black text for printing */
-                        * { color: black !important; }
-                        /* Hide scrollbars in print */
-                        ::-webkit-scrollbar { display: none; }
-                        .no-print { display: none; }
-                    </style>
-                `);
-                printWindow.document.write('</head><body class="bg-white text-black">');
-                printWindow.document.write(previewElement.innerHTML);
-                printWindow.document.write('</body></html>');
-                printWindow.document.close();
-
-                // Wait for resources to load
-                setTimeout(() => {
-                    printWindow.focus();
-                    printWindow.print();
-                    // Optional: close after print
-                    // printWindow.close();
-                }, 1500);
-            } else {
-                alert('Vui lòng cho phép mở cửa sổ bật lên (pop-up) để in hóa đơn.');
-            }
-        }
+        // This relies on the @media print styles in index.html to format the output.
+        // It's the most compatible way for both desktop and mobile (AirPrint).
+        window.print();
     };
     
     // Determine preview width based on paper size
@@ -245,77 +198,165 @@ const BillPreviewModal: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-start pt-10 z-[100] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-start pt-10 z-[100] overflow-y-auto no-print">
             <div className="flex flex-col items-center my-10">
                 <h3 className="text-white font-bold mb-4 text-xl">Xem trước bản in</h3>
                  <div className={`bg-white text-black rounded-sm shadow-2xl p-4 mb-6 ${getPreviewWidthClass()} min-h-[300px]`}>
-                    <div id="bill-preview" className="text-black">
-                        <div className="text-center font-mono text-xs text-black leading-relaxed">
-                            <pre className="whitespace-pre-wrap text-black font-sans text-sm font-semibold mb-2">{settings.header}</pre>
-                            <h2 className="text-lg font-bold my-2 text-black uppercase border-b-2 border-black pb-1 inline-block">HÓA ĐƠN THANH TOÁN</h2>
-                            <div className="text-left text-black mt-2 mb-2 text-sm">
-                                <p>Số HD: <span className="font-bold">#{order.id.slice(-6).toUpperCase()}</span></p>
-                                <p>Bàn: <span className="font-bold">{order.tableNumber}</span></p>
-                                <p>Ngày: {new Date(order.timestamp).toLocaleString('vi-VN')}</p>
-                            </div>
-                            <hr className="my-2 border-dashed border-black" />
-                            <table className="w-full text-left text-black text-sm">
-                                <thead>
-                                    <tr className="border-b border-black border-dashed">
-                                        <th className="font-bold py-1">Món</th>
-                                        <th className="font-bold text-center py-1 w-8">SL</th>
-                                        <th className="font-bold text-right py-1">Tiền</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {order.items.map((item, index) => (
-                                        <React.Fragment key={index}>
-                                            <tr>
-                                                <td className="py-1 pr-1 align-top font-semibold">{item.name}</td>
-                                                <td className="text-center py-1 align-top">{item.quantity}</td>
-                                                <td className="text-right py-1 align-top font-medium">{((item.price || 0) * item.quantity).toLocaleString('vi-VN')}</td>
-                                            </tr>
-                                            {item.selectedToppings && item.selectedToppings.length > 0 && (
-                                                <tr>
-                                                    <td colSpan={3} className="pt-0 pb-1 pl-4">
-                                                        <div className="text-[10px] italic text-gray-800">
-                                                            + {item.selectedToppings.map(t => `${t.name} (${t.price.toLocaleString('vi-VN')})`).join(', ')}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                            {item.note && (
-                                                 <tr>
-                                                    <td colSpan={3} className="pt-0 pb-1 pl-4">
-                                                        <div className="text-[10px] italic text-gray-800">- Ghi chú: {item.note}</div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </React.Fragment>
-                                    ))}
-                                </tbody>
-                            </table>
-                            <hr className="my-2 border-t-2 border-black" />
-                            <div className="text-right font-bold text-lg text-black">
-                                <p>TỔNG: {(order.total || 0).toLocaleString('vi-VN')}đ</p>
-                            </div>
-                            <hr className="my-2 border-dashed border-black" />
-                            <pre className="whitespace-pre-wrap text-black font-sans mt-4">{settings.footer}</pre>
-                            {settings.qrCodeUrl && (
-                                <div className="mt-4 flex flex-col items-center">
-                                    <img src={settings.qrCodeUrl} alt="Bank QR" className="w-32 h-32 object-contain border border-black"/>
-                                    <p className="text-[10px] mt-1">Quét mã để thanh toán</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                    {/* The content for printing is now separate and hidden by default, shown only by print CSS */}
+                 </div>
                 <div className="flex gap-4 pb-10 sticky bottom-4">
                     <button onClick={onClose} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform hover:scale-105">Đóng</button>
                     <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center gap-2">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                         In Hóa Đơn
                     </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const BillForPrinting: React.FC<{ order: Order, settings: PrinterSettings }> = ({ order, settings }) => {
+    return (
+         <div id="bill-preview" className="text-black">
+            <div className="text-center font-mono text-xs text-black leading-relaxed">
+                <pre className="whitespace-pre-wrap text-black font-sans text-sm font-semibold mb-2">{settings.header}</pre>
+                <h2 className="text-lg font-bold my-2 text-black uppercase border-b-2 border-black pb-1 inline-block">HÓA ĐƠN THANH TOÁN</h2>
+                <div className="text-left text-black mt-2 mb-2 text-sm">
+                    <p>Số HD: <span className="font-bold">#{order.id.slice(-6).toUpperCase()}</span></p>
+                    <p>Bàn: <span className="font-bold">{order.tableNumber}</span></p>
+                    <p>Ngày: {new Date(order.timestamp).toLocaleString('vi-VN')}</p>
+                </div>
+                <hr className="my-2 border-dashed border-black" />
+                <table className="w-full text-left text-black text-sm">
+                    <thead>
+                        <tr className="border-b border-black border-dashed">
+                            <th className="font-bold py-1">Món</th>
+                            <th className="font-bold text-center py-1 w-8">SL</th>
+                            <th className="font-bold text-right py-1">Tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {order.items.map((item, index) => (
+                            <React.Fragment key={index}>
+                                <tr>
+                                    <td className="py-1 pr-1 align-top font-semibold">{item.name}</td>
+                                    <td className="text-center py-1 align-top">{item.quantity}</td>
+                                    <td className="text-right py-1 align-top font-medium">{((item.price || 0) * item.quantity).toLocaleString('vi-VN')}</td>
+                                </tr>
+                                {item.selectedToppings && item.selectedToppings.length > 0 && (
+                                    <tr>
+                                        <td colSpan={3} className="pt-0 pb-1 pl-4">
+                                            <div className="text-[10px] italic text-gray-800">
+                                                + {item.selectedToppings.map(t => `${t.name} (${t.price.toLocaleString('vi-VN')})`).join(', ')}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                                {item.note && (
+                                     <tr>
+                                        <td colSpan={3} className="pt-0 pb-1 pl-4">
+                                            <div className="text-[10px] italic text-gray-800">- Ghi chú: {item.note}</div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </tbody>
+                </table>
+                <hr className="my-2 border-t-2 border-black" />
+                <div className="text-right font-bold text-lg text-black">
+                    <p>TỔNG: {(order.total || 0).toLocaleString('vi-VN')}đ</p>
+                </div>
+                <hr className="my-2 border-dashed border-black" />
+                <pre className="whitespace-pre-wrap text-black font-sans mt-4">{settings.footer}</pre>
+                {settings.qrCodeUrl && (
+                    <div className="mt-4 flex flex-col items-center">
+                        <img src={settings.qrCodeUrl} alt="Bank QR" className="w-32 h-32 object-contain border border-black"/>
+                        <p className="text-[10px] mt-1">Quét mã để thanh toán</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const PrintSelectionModal: React.FC<{
+    order: Order | null;
+    printStations: PrintStation[];
+    branchSettings?: PrinterSettings;
+    branchName: string;
+    onClose: () => void;
+}> = ({ order, printStations, branchSettings, branchName, onClose }) => {
+    const { showToast } = useToast();
+
+    if (!order || !branchSettings) return null;
+
+    const handleCloudPrint = (stationId: string) => {
+        const job: PrintJob = {
+            id: `job-${Date.now()}`,
+            stationId,
+            order,
+            printerSettings: branchSettings,
+            branchName,
+            timestamp: Date.now(),
+        };
+
+        const printQueueRef = ref(database, 'printQueue');
+        const newJobRef = push(printQueueRef); // push() generates a unique key
+        set(newJobRef, job)
+            .then(() => {
+                showToast(`Đã gửi lệnh in đến "${printStations.find(ps => ps.id === stationId)?.name}".`, 'success');
+                onClose();
+            })
+            .catch(err => {
+                console.error("Failed to send print job:", err);
+                showToast('Gửi lệnh in thất bại.', 'error');
+            });
+    };
+
+    const handleBrowserPrint = () => {
+        // This relies on the @media print styles in index.html to format the output.
+        // It's the most compatible way for mobile (AirPrint) and basic desktop printing.
+        window.print();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[100]">
+            <div className="bg-primary-dark border-2 border-accent rounded-lg p-6 w-full max-w-sm text-white shadow-2xl">
+                <h3 className="text-xl font-bold text-accent mb-4">Chọn phương thức in</h3>
+                
+                <div className="mb-4">
+                    <button 
+                        onClick={handleBrowserPrint}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                    >
+                        In qua Trình duyệt (AirPrint/PDF)
+                    </button>
+                    <p className="text-xs text-gray-300 mt-1 text-center">Dùng cho máy in AirPrint (iPad) hoặc in ra file PDF.</p>
+                </div>
+                
+                <div className="border-t border-accent/50 pt-4">
+                    <h4 className="font-semibold text-gray-100 mb-2">In trực tiếp đến Trạm In:</h4>
+                    {printStations.length > 0 ? (
+                        <div className="space-y-2">
+                            {printStations.map(station => (
+                                <button
+                                    key={station.id}
+                                    onClick={() => handleCloudPrint(station.id)}
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                                >
+                                    {station.name}
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-400 text-center p-2 bg-primary rounded-md">Chưa có Trạm In nào được cài đặt.</p>
+                    )}
+                </div>
+
+                <div className="mt-6 text-center">
+                    <button onClick={onClose} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Đóng</button>
                 </div>
             </div>
         </div>
@@ -494,7 +535,6 @@ const OrderEditModal: React.FC<{
 };
 // --- END EDITING MODALS ---
 
-
 const OrderCard: React.FC<{ 
     order: Order; 
     branchName: string;
@@ -550,12 +590,11 @@ interface OrdersTabProps {
     setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
     menuItems: MenuItem[];
     branches: Branch[];
+    printStations: PrintStation[];
 }
 
-const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, branches }) => {
-    const [isBillVisible, setIsBillVisible] = useState(false);
-    const [isDetailsVisible, setIsDetailsVisible] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, branches, printStations }) => {
+    const [currentModal, setCurrentModal] = useState<'none' | 'details' | 'edit' | 'print_selection'>('none');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [filtersVisible, setFiltersVisible] = useState(true);
     const { showToast } = useToast();
@@ -616,25 +655,25 @@ const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, bra
         }
     };
 
-    const handlePrintBill = (order: Order) => {
+    const handlePrintRequest = (order: Order) => {
         setSelectedOrder(order);
-        setIsBillVisible(true);
+        setCurrentModal('print_selection');
     };
     
     const handleViewDetails = (order: Order) => {
         setSelectedOrder(order);
-        setIsDetailsVisible(true);
+        setCurrentModal('details');
     }
 
     const handleEditOrder = (order: Order) => {
         setSelectedOrder(order);
-        setIsEditModalOpen(true);
+        setCurrentModal('edit');
     };
 
     const handleSaveChanges = (updatedOrder: Order) => {
         setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
         showToast('Đã cập nhật đơn hàng thành công!');
-        setIsEditModalOpen(false);
+        setCurrentModal('none');
         setSelectedOrder(null);
     };
     
@@ -650,9 +689,23 @@ const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, bra
 
     return (
         <div>
-            {isBillVisible && selectedOrder && selectedOrderBranchSettings && <BillPreviewModal order={selectedOrder} settings={selectedOrderBranchSettings} onClose={() => setIsBillVisible(false)} />}
-            {isDetailsVisible && <OrderDetailsModal order={selectedOrder} onClose={() => setIsDetailsVisible(false)} getBranchName={getBranchName} />}
-            {isEditModalOpen && <OrderEditModal order={selectedOrder} menuItems={menuItems} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveChanges} />}
+            {currentModal === 'details' && <OrderDetailsModal order={selectedOrder} onClose={() => setCurrentModal('none')} getBranchName={getBranchName} />}
+            {currentModal === 'edit' && <OrderEditModal order={selectedOrder} menuItems={menuItems} onClose={() => setCurrentModal('none')} onSave={handleSaveChanges} />}
+            
+            {/* The actual printable bill content, hidden by default */}
+            {selectedOrder && selectedOrderBranchSettings && (
+                 <BillForPrinting order={selectedOrder} settings={selectedOrderBranchSettings} />
+            )}
+
+            {currentModal === 'print_selection' && (
+                <PrintSelectionModal
+                    order={selectedOrder}
+                    printStations={printStations}
+                    branchSettings={selectedOrderBranchSettings}
+                    branchName={getBranchName(selectedOrder?.branchId || '')}
+                    onClose={() => setCurrentModal('none')}
+                />
+            )}
             
             <h2 className="text-2xl font-bold text-accent mb-4">Quản Lý Đơn Hàng</h2>
 
@@ -707,7 +760,7 @@ const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, bra
                             order={order} 
                             branchName={getBranchName(order.branchId)}
                             onStatusChange={handleStatusChange} 
-                            onPrint={handlePrintBill} 
+                            onPrint={handlePrintRequest} 
                             onViewDetails={handleViewDetails}
                             onEdit={handleEditOrder}
                         />

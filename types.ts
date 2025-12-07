@@ -106,3 +106,20 @@ export interface KitchenSettings {
 export interface CustomerSettings {
   notificationSoundUrl: string;
 }
+
+export interface PrintStation {
+  id: string;
+  name: string;
+  ipAddress: string;
+  port: number; // e.g., 9100 for most receipt printers
+  type: 'thermal-receipt'; // For future expansion (e.g., 'label', 'a4-document')
+}
+
+export interface PrintJob {
+  id: string;
+  stationId: string;
+  order: Order;
+  printerSettings: PrinterSettings;
+  branchName: string;
+  timestamp: number;
+}
