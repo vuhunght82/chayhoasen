@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext, useCallback, ReactNode, useMemo } from 'react';
 import CustomerView from './views/CustomerView';
 import AdminView from './views/AdminView';
@@ -139,11 +138,39 @@ const DEFAULT_KITCHEN_SOUNDS: SavedSound[] = [
     { id: 's5', name: 'Đồng hồ cơ', url: 'https://actions.google.com/sounds/v1/alarms/mechanical_clock_ring.ogg' }
 ];
 
+const DEFAULT_PRINTER_SETTINGS: PrinterSettings = {
+    header: 'Nhà hàng Chay Hoa Sen\nĐịa chỉ: [Địa chỉ chi nhánh]\nHotline: [Số điện thoại]',
+    footer: 'Cảm ơn quý khách! Hẹn gặp lại!',
+    qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ChayHoaSen-DefaultBank',
+    paperSize: '80mm' as const,
+    printerName: 'Máy in mặc định'
+};
+
 // Initial data for seeding the database if it's empty
 const INITIAL_DATA = {
   branches: [
-    { id: 'cn1', name: 'Chi nhánh Quận 1', latitude: 10.7769, longitude: 106.7009, allowedDistance: 100 },
-    { id: 'cn2', name: 'Chi nhánh Quận 7', latitude: 10.7326, longitude: 106.7072, allowedDistance: 150 },
+    { 
+        id: 'cn1', 
+        name: 'Chi nhánh Quận 1', 
+        latitude: 10.7769, 
+        longitude: 106.7009, 
+        allowedDistance: 100,
+        printerSettings: {
+            ...DEFAULT_PRINTER_SETTINGS,
+            header: 'Nhà hàng Chay Hoa Sen\nChi nhánh Quận 1\nĐịa chỉ: 123 Đường ABC, Q.1, TPHCM\nHotline: 0123.456.789'
+        }
+    },
+    { 
+        id: 'cn2', 
+        name: 'Chi nhánh Quận 7', 
+        latitude: 10.7326, 
+        longitude: 106.7072, 
+        allowedDistance: 150,
+        printerSettings: {
+            ...DEFAULT_PRINTER_SETTINGS,
+            header: 'Nhà hàng Chay Hoa Sen\nChi nhánh Quận 7\nĐịa chỉ: 456 Đường XYZ, Q.7, TPHCM\nHotline: 0987.654.321'
+        }
+    },
   ],
   categories: [
     { id: 'kv', name: 'Món Khai Vị' },
@@ -172,13 +199,6 @@ const INITIAL_DATA = {
   orders: [],
   admins: {
     admin1: { username: 'admin', password: '123' }
-  },
-  printerSettings: {
-    header: 'Nhà hàng Chay Hoa Sen\nĐịa chỉ: 123 Đường ABC, Quận 1, TPHCM\nHotline: 0123.456.789',
-    footer: 'Cảm ơn quý khách! Hẹn gặp lại!',
-    qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ChayHoaSen-BankInfo',
-    paperSize: '80mm' as const,
-    printerName: 'Máy in mặc định'
   },
   kitchenSettings: {
     notificationSoundUrl: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg',
@@ -240,7 +260,6 @@ const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
   const [toppingGroups, setToppingGroups] = useState<ToppingGroup[]>([]);
-  const [printerSettings, setPrinterSettings] = useState<PrinterSettings>(INITIAL_DATA.printerSettings);
   const [kitchenSettings, setKitchenSettings] = useState<KitchenSettings>(INITIAL_DATA.kitchenSettings);
   const [logoUrl, setLogoUrl] = useState<string>(INITIAL_DATA.logoUrl);
   const [themeColor, setThemeColor] = useState<string>(INITIAL_DATA.themeColor);
@@ -312,7 +331,14 @@ const App: React.FC = () => {
     const unsubscribe = onValue(ref(database), (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setBranches(firebaseListToArray(data.branches));
+        // Sanitize branches to ensure printerSettings exists
+        const rawBranches = firebaseListToArray<Branch>(data.branches);
+        const sanitizedBranches = rawBranches.map(branch => ({
+            ...branch,
+            printerSettings: { ...DEFAULT_PRINTER_SETTINGS, ...branch.printerSettings }
+        }));
+        setBranches(sanitizedBranches);
+
         setCategories(firebaseListToArray(data.categories));
         setToppings(firebaseListToArray(data.toppings));
 
@@ -341,12 +367,6 @@ const App: React.FC = () => {
         }));
         setOrders(sanitizedOrders);
         
-        if (data.printerSettings) {
-            setPrinterSettings({
-                ...INITIAL_DATA.printerSettings,
-                ...data.printerSettings
-            });
-        }
         if (data.kitchenSettings) {
              const savedSounds = data.kitchenSettings.savedSounds 
                 ? firebaseListToArray<SavedSound>(data.kitchenSettings.savedSounds)
@@ -375,7 +395,9 @@ const App: React.FC = () => {
       id: `o${Date.now()}`,
       timestamp: Date.now(),
     };
-    const newOrders = [order, ...orders];
+    // The CustomerView now provides a full order object including the generated ID and timestamp
+    const fullOrder = newOrder as Order;
+    const newOrders = [fullOrder, ...orders];
     set(ref(database, 'orders'), newOrders);
   };
   
@@ -409,11 +431,6 @@ const App: React.FC = () => {
       set(ref(database, 'branches'), dataToSet);
   };
   
-  const handleSetPrinterSettings = (newSettings: PrinterSettings | ((prev: PrinterSettings) => PrinterSettings)) => {
-      const dataToSet = typeof newSettings === 'function' ? newSettings(printerSettings) : newSettings;
-      set(ref(database, 'printerSettings'), dataToSet);
-  };
-
   const handleSetKitchenSettings = (newSettings: KitchenSettings | ((prev: KitchenSettings) => KitchenSettings)) => {
       const dataToSet = typeof newSettings === 'function' ? newSettings(kitchenSettings) : newSettings;
       set(ref(database, 'kitchenSettings'), dataToSet);
@@ -484,7 +501,7 @@ const App: React.FC = () => {
                         toppings={toppings}
                         toppingGroups={toppingGroups}
                         addOrder={addOrder}
-                        printerSettings={printerSettings}
+                        orders={orders}
                     />;
         case 'admin':
             return <AdminView 
@@ -500,8 +517,6 @@ const App: React.FC = () => {
                         setToppingGroups={handleSetToppingGroups}
                         orders={orders}
                         setOrders={handleSetOrders}
-                        printerSettings={printerSettings}
-                        setPrinterSettings={handleSetPrinterSettings}
                         kitchenSettings={kitchenSettings}
                         setKitchenSettings={handleSetKitchenSettings}
                         logoUrl={logoUrl}

@@ -13,6 +13,104 @@ const getStatusColor = (status: OrderStatus) => {
     }
 }
 
+// --- Custom Date Picker Component ---
+const CustomDatePicker: React.FC<{
+    selectedDate: string;
+    onDateChange: (date: string) => void;
+    orderCounts: Record<string, number>;
+}> = ({ selectedDate, onDateChange, orderCounts }) => {
+    const [viewDate, setViewDate] = useState(new Date(selectedDate));
+    const [isOpen, setIsOpen] = useState(false);
+
+    const changeMonth = (amount: number) => {
+        setViewDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setMonth(newDate.getMonth() + amount);
+            return newDate;
+        });
+    };
+    
+    const selectDate = (day: number) => {
+        const newDate = new Date(viewDate);
+        newDate.setDate(day);
+        onDateChange(newDate.toISOString().substring(0, 10));
+        setIsOpen(false);
+    };
+
+    const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+    const firstDayOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay(); // Sunday - 0, Monday - 1
+
+    const calendarDays = [];
+    for (let i = 0; i < firstDayOfMonth; i++) {
+        calendarDays.push(<div key={`empty-${i}`} className="p-1"></div>);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${viewDate.getFullYear()}-${(viewDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        const isSelected = dateStr === selectedDate;
+        const orderCount = orderCounts[dateStr] || 0;
+        
+        calendarDays.push(
+            <div key={day} className="p-1">
+                <button
+                    onClick={() => selectDate(day)}
+                    className={`w-full h-full flex flex-col items-center justify-center rounded-lg transition-colors duration-200 aspect-square ${
+                        isSelected 
+                            ? 'bg-accent text-primary-dark font-bold' 
+                            : 'text-white hover:bg-primary-light'
+                    }`}
+                >
+                    <span>{day}</span>
+                    {orderCount > 0 && (
+                         <span className={`text-xs mt-0.5 px-1 rounded-full ${isSelected ? 'bg-primary-dark/20' : 'bg-primary-light/50 text-gray-200'}`}>
+                            {orderCount}
+                        </span>
+                    )}
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="relative">
+            <input 
+                type="text" 
+                value={new Date(selectedDate).toLocaleDateString('vi-VN')}
+                readOnly
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full bg-primary border border-accent/50 rounded-md p-2 text-white cursor-pointer"
+            />
+            {isOpen && (
+                 <div className="absolute top-full mt-2 w-full max-w-xs bg-primary-dark border border-accent/50 rounded-lg p-3 shadow-2xl z-20">
+                    <div className="flex justify-between items-center mb-2">
+                        <button onClick={() => changeMonth(-1)} className="font-bold text-accent p-2 rounded-full hover:bg-primary-light">‹</button>
+                        <span className="font-semibold text-white">
+                            Tháng {viewDate.getMonth() + 1}, {viewDate.getFullYear()}
+                        </span>
+                        <button onClick={() => changeMonth(1)} className="font-bold text-accent p-2 rounded-full hover:bg-primary-light">›</button>
+                    </div>
+                    <div className="grid grid-cols-7 text-center text-xs text-gray-300 mb-1">
+                        {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map(d => <div key={d}>{d}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7">
+                        {calendarDays}
+                    </div>
+                     <div className="flex justify-between mt-2 pt-2 border-t border-accent/30 text-sm">
+                        <button onClick={() => {
+                            const today = new Date();
+                            setViewDate(today);
+                            onDateChange(today.toISOString().substring(0, 10));
+                            setIsOpen(false);
+                        }} className="text-accent hover:underline">Hôm nay</button>
+                         <button onClick={() => setIsOpen(false)} className="text-gray-300 hover:text-white">Đóng</button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 const OrderDetailsModal: React.FC<{
     order: Order | null;
     onClose: () => void;
@@ -452,10 +550,9 @@ interface OrdersTabProps {
     setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
     menuItems: MenuItem[];
     branches: Branch[];
-    printerSettings: PrinterSettings;
 }
 
-const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, branches, printerSettings }) => {
+const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, branches }) => {
     const [isBillVisible, setIsBillVisible] = useState(false);
     const [isDetailsVisible, setIsDetailsVisible] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -468,15 +565,26 @@ const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, bra
     const [branchFilter, setBranchFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
 
-    const { filteredOrders, dailySummary } = useMemo(() => {
-        const filtered = orders.filter(order => {
-            const orderDate = new Date(order.timestamp);
-            const filterDate = new Date(dateFilter);
-            const isSameDay = orderDate.getFullYear() === filterDate.getFullYear() &&
-                              orderDate.getMonth() === filterDate.getMonth() &&
-                              orderDate.getDate() === filterDate.getDate();
-            if (!isSameDay) return false;
+    const orderCountsPerDay = useMemo(() => {
+        const counts: Record<string, number> = {};
+        orders.forEach(order => {
+            const dateStr = new Date(order.timestamp).toISOString().substring(0, 10);
+            counts[dateStr] = (counts[dateStr] || 0) + 1;
+        });
+        return counts;
+    }, [orders]);
 
+    const { filteredOrders, dailySummary } = useMemo(() => {
+        const filterDate = new Date(dateFilter);
+        filterDate.setHours(0,0,0,0);
+        const nextDay = new Date(filterDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        const filtered = orders.filter(order => {
+            const orderTimestamp = order.timestamp;
+            if (orderTimestamp < filterDate.getTime() || orderTimestamp >= nextDay.getTime()) {
+                return false;
+            }
             if (branchFilter !== 'all' && order.branchId !== branchFilter) return false;
             if (statusFilter !== 'all' && order.status !== statusFilter) return false;
             
@@ -534,9 +642,15 @@ const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, bra
         return branches.find(b => b.id === branchId)?.name || 'Không xác định';
     }
 
+    const selectedOrderBranchSettings = useMemo(() => {
+        if (!selectedOrder) return undefined;
+        const branch = branches.find(b => b.id === selectedOrder.branchId);
+        return branch?.printerSettings;
+    }, [selectedOrder, branches]);
+
     return (
         <div>
-            {isBillVisible && <BillPreviewModal order={selectedOrder} settings={printerSettings} onClose={() => setIsBillVisible(false)} />}
+            {isBillVisible && selectedOrder && selectedOrderBranchSettings && <BillPreviewModal order={selectedOrder} settings={selectedOrderBranchSettings} onClose={() => setIsBillVisible(false)} />}
             {isDetailsVisible && <OrderDetailsModal order={selectedOrder} onClose={() => setIsDetailsVisible(false)} getBranchName={getBranchName} />}
             {isEditModalOpen && <OrderEditModal order={selectedOrder} menuItems={menuItems} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveChanges} />}
             
@@ -560,18 +674,22 @@ const OrdersTab: React.FC<OrdersTabProps> = ({ orders, setOrders, menuItems, bra
                 {filtersVisible && (
                     <div className="flex flex-wrap gap-4 p-4 bg-primary-dark rounded-lg border border-accent/50">
                         <div className="flex-1 min-w-[150px]">
-                            <label className="text-sm text-gray-200 block">Ngày</label>
-                            <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="w-full bg-primary border border-accent/50 rounded-md p-2 text-white" />
+                            <label className="text-sm text-gray-200 block mb-1">Ngày</label>
+                             <CustomDatePicker
+                                selectedDate={dateFilter}
+                                onDateChange={setDateFilter}
+                                orderCounts={orderCountsPerDay}
+                            />
                         </div>
                         <div className="flex-1 min-w-[150px]">
-                            <label className="text-sm text-gray-200 block">Chi nhánh</label>
+                            <label className="text-sm text-gray-200 block mb-1">Chi nhánh</label>
                             <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="w-full bg-primary border border-accent/50 rounded-md p-2 text-white">
                                 <option value="all">Tất cả</option>
                                 {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                             </select>
                         </div>
                          <div className="flex-1 min-w-[150px]">
-                            <label className="text-sm text-gray-200 block">Trạng thái</label>
+                            <label className="text-sm text-gray-200 block mb-1">Trạng thái</label>
                             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full bg-primary border border-accent/50 rounded-md p-2 text-white">
                                 <option value="all">Tất cả</option>
                                 {Object.values(OrderStatus).map(s => <option key={s} value={s}>{s}</option>)}

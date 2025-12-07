@@ -5,6 +5,7 @@ export interface Branch {
   latitude?: number;
   longitude?: number;
   allowedDistance?: number;
+  printerSettings?: PrinterSettings;
 }
 
 export interface Category {

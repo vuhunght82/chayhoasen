@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Branch, Category, MenuItem, CartItem, Order, OrderStatus, PrinterSettings, PaymentMethod, OrderItem, Topping, ToppingGroup } from '../types';
 import { useToast } from '../App';
@@ -10,7 +9,7 @@ interface CustomerViewProps {
     toppings: Topping[];
     toppingGroups: ToppingGroup[];
     addOrder: (order: Omit<Order, 'id' | 'timestamp'>) => void;
-    printerSettings: PrinterSettings;
+    orders: Order[]; // Add orders to props to listen for status changes
 }
 const PLACEHOLDER_IMAGE = "https://via.placeholder.com/540x540.png?text=Chay+Hoa+Sen";
 
@@ -485,6 +484,42 @@ const QRScannerModal: React.FC<{
     );
 };
 
+// --- Order Ready Notification Modal ---
+const OrderReadyModal: React.FC<{
+    order: Order | null;
+    onClose: () => void;
+}> = ({ order, onClose }) => {
+    if (!order) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-[180]">
+            <div className="bg-primary-dark border-4 border-accent rounded-lg p-8 w-full max-w-sm text-center shadow-2xl animate-pulse-once">
+                <div className="text-5xl mb-4">🍽️</div>
+                <h3 className="text-3xl font-bold text-accent mb-4">Món đã sẵn sàng!</h3>
+                <p className="text-gray-100 text-lg mb-6">
+                    Đơn hàng cho <span className="font-bold">Bàn {order.tableNumber}</span> đã được chuẩn bị xong.
+                </p>
+                <button 
+                    onClick={onClose} 
+                    className="w-full bg-accent hover:bg-accent-dark text-primary-dark font-bold py-3 rounded-lg text-lg transition-colors duration-200"
+                >
+                    Đã hiểu
+                </button>
+            </div>
+            <style>{`
+                @keyframes pulse-once {
+                    0% { transform: scale(0.95); }
+                    70% { transform: scale(1.05); }
+                    100% { transform: scale(1); }
+                }
+                .animate-pulse-once {
+                    animation: pulse-once 0.5s ease-in-out;
+                }
+            `}</style>
+        </div>
+    );
+};
+
 
 const MenuItemCard: React.FC<{ 
     item: MenuItem; 
@@ -526,7 +561,7 @@ const MenuItemCard: React.FC<{
   );
 };
 
-const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuItems, toppings, toppingGroups, addOrder, printerSettings }) => {
+const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuItems, toppings, toppingGroups, addOrder, orders }) => {
   const [selectedBranch, setSelectedBranch] = useState<string>(branches[0]?.id || '');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -540,10 +575,49 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
   const [recentlyAdded, setRecentlyAdded] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // State for order ready notification
+  const [isOrderReadyModalOpen, setIsOrderReadyModalOpen] = useState(false);
+  const [readyOrder, setReadyOrder] = useState<Order | null>(null);
+  const previousOrdersRef = useRef<Order[]>([]);
+  const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
+
+
+  const selectedBranchSettings = useMemo(() => {
+    const defaultSettings: PrinterSettings = { header: '', footer: '', qrCodeUrl: '', paperSize: '80mm' };
+    return branches.find(b => b.id === selectedBranch)?.printerSettings || defaultSettings;
+  }, [branches, selectedBranch]);
+  
   useEffect(() => {
     // Prevent body scroll when a modal is open
-    document.body.style.overflow = currentModal !== 'none' || viewingItem || configuringItem ? 'hidden' : 'auto';
-  }, [currentModal, viewingItem, configuringItem]);
+    document.body.style.overflow = currentModal !== 'none' || viewingItem || configuringItem || isOrderReadyModalOpen ? 'hidden' : 'auto';
+  }, [currentModal, viewingItem, configuringItem, isOrderReadyModalOpen]);
+
+  // Effect to check for order status changes
+  useEffect(() => {
+    const myOrderId = sessionStorage.getItem('myOrderId');
+    if (!myOrderId) return;
+    
+    const myOrder = orders.find(o => o.id === myOrderId);
+    const prevOrder = previousOrdersRef.current.find(o => o.id === myOrderId);
+
+    if (myOrder && prevOrder && prevOrder.status === OrderStatus.NEW && myOrder.status === OrderStatus.COMPLETED) {
+        setReadyOrder(myOrder);
+        setIsOrderReadyModalOpen(true);
+
+        // Play sound
+        if (notificationAudioRef.current) {
+            notificationAudioRef.current.play().catch(e => console.error("Notification sound error:", e));
+        }
+
+        // Vibrate
+        if ('vibrate' in navigator) {
+            navigator.vibrate([200, 100, 200]); // Vibrate pattern
+        }
+    }
+
+    previousOrdersRef.current = orders;
+  }, [orders]);
+
 
   useEffect(() => {
     // Check for QR code data in URL on initial load
@@ -577,7 +651,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
         setRecentlyAdded(prev => [...prev, item.id]);
         setTimeout(() => {
             setRecentlyAdded(prev => prev.filter(id => id !== item.id));
-        }, 1500);
+        }, 500);
     }
   };
   
@@ -636,7 +710,15 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
         newOrder.note = note.trim();
     }
     
-    addOrder(newOrder);
+    // Temporarily create a full order object to get the ID
+    const tempFullOrder: Order = {
+        ...newOrder,
+        id: `o${Date.now()}`,
+        timestamp: Date.now()
+    }
+    
+    addOrder(tempFullOrder);
+    sessionStorage.setItem('myOrderId', tempFullOrder.id); // Store the ID for notification tracking
 
     if (method === PaymentMethod.TRANSFER) {
         setCurrentModal('qr');
@@ -652,6 +734,12 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
     setTableNumber('');
     setNote('');
   };
+  
+  const handleCloseOrderReadyModal = () => {
+      setIsOrderReadyModalOpen(false);
+      setReadyOrder(null);
+      sessionStorage.removeItem('myOrderId'); // Clear the ID after acknowledgment
+  }
 
   const handleScanSuccess = async (data: string) => {
       setCurrentModal('cart'); // Close scanner and go back to cart
@@ -741,6 +829,11 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
 
   return (
     <>
+      <audio 
+          ref={notificationAudioRef}
+          src="https://actions.google.com/sounds/v1/alarms/notification_high_intensity.ogg"
+          preload="auto"
+      ></audio>
       <FloatingActionButtons cartItemCount={totalCartItems} onCartClick={() => setCurrentModal('cart')} />
       <CartModal 
         isOpen={currentModal === 'cart'}
@@ -765,7 +858,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
             showToast('Đơn hàng đã được ghi nhận!');
             resetOrderState();
         }}
-        qrCodeUrl={printerSettings.qrCodeUrl}
+        qrCodeUrl={selectedBranchSettings.qrCodeUrl}
       />
       {currentModal === 'scanner' && (
           <QRScannerModal
@@ -790,6 +883,10 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
             onAddToCart={handleAddToCartWithToppings}
         />
       )}
+      <OrderReadyModal 
+        order={readyOrder}
+        onClose={handleCloseOrderReadyModal}
+      />
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-8 flex flex-col lg:flex-row gap-8 pb-24 lg:pb-8">
         {/* Main content */}

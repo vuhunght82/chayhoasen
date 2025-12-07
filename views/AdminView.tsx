@@ -22,8 +22,6 @@ interface AdminViewProps {
     setToppingGroups: React.Dispatch<React.SetStateAction<ToppingGroup[]>>;
     orders: Order[];
     setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
-    printerSettings: PrinterSettings;
-    setPrinterSettings: React.Dispatch<React.SetStateAction<PrinterSettings>>;
     kitchenSettings: KitchenSettings;
     setKitchenSettings: React.Dispatch<React.SetStateAction<KitchenSettings>>;
     logoUrl: string;
@@ -43,7 +41,7 @@ const AdminView: React.FC<AdminViewProps> = (props) => {
       case 'dashboard':
         return <DashboardTab orders={props.orders} menuItems={props.menuItems} />;
       case 'orders':
-        return <OrdersTab orders={props.orders} setOrders={props.setOrders} menuItems={props.menuItems} branches={props.branches} printerSettings={props.printerSettings} />;
+        return <OrdersTab orders={props.orders} setOrders={props.setOrders} menuItems={props.menuItems} branches={props.branches} />;
       case 'menu':
         return <MenuTab 
                     menuItems={props.menuItems} 
@@ -62,8 +60,6 @@ const AdminView: React.FC<AdminViewProps> = (props) => {
         return <SettingsTab 
                     branches={props.branches} 
                     setBranches={props.setBranches} 
-                    printerSettings={props.printerSettings} 
-                    setPrinterSettings={props.setPrinterSettings}
                     kitchenSettings={props.kitchenSettings}
                     setKitchenSettings={props.setKitchenSettings}
                     logoUrl={props.logoUrl}
