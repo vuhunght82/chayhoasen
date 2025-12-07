@@ -1,4 +1,5 @@
 
+
 export interface Branch {
   id: string;
   name: string;
@@ -100,4 +101,8 @@ export interface KitchenSettings {
   notificationSoundUrl: string;
   notificationRepeatCount?: number;
   savedSounds?: SavedSound[];
+}
+
+export interface CustomerSettings {
+  notificationSoundUrl: string;
 }

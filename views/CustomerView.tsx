@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Branch, Category, MenuItem, CartItem, Order, OrderStatus, PrinterSettings, PaymentMethod, OrderItem, Topping, ToppingGroup } from '../types';
+import { Branch, Category, MenuItem, CartItem, Order, OrderStatus, PrinterSettings, PaymentMethod, OrderItem, Topping, ToppingGroup, CustomerSettings } from '../types';
 import { useToast } from '../App';
 
 interface CustomerViewProps {
@@ -10,6 +10,7 @@ interface CustomerViewProps {
     toppingGroups: ToppingGroup[];
     addOrder: (order: Omit<Order, 'id' | 'timestamp'>) => void;
     orders: Order[]; // Add orders to props to listen for status changes
+    customerSettings: CustomerSettings;
 }
 const PLACEHOLDER_IMAGE = "https://via.placeholder.com/540x540.png?text=Chay+Hoa+Sen";
 
@@ -561,7 +562,7 @@ const MenuItemCard: React.FC<{
   );
 };
 
-const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuItems, toppings, toppingGroups, addOrder, orders }) => {
+const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuItems, toppings, toppingGroups, addOrder, orders, customerSettings }) => {
   const [selectedBranch, setSelectedBranch] = useState<string>(branches[0]?.id || '');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -831,7 +832,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
     <>
       <audio 
           ref={notificationAudioRef}
-          src="https://actions.google.com/sounds/v1/alarms/notification_high_intensity.ogg"
+          src={customerSettings.notificationSoundUrl}
           preload="auto"
       ></audio>
       <FloatingActionButtons cartItemCount={totalCartItems} onCartClick={() => setCurrentModal('cart')} />

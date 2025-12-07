@@ -1,11 +1,12 @@
 
+
 import React, { useState } from 'react';
 import OrdersTab from './admin/OrdersTab';
 import MenuTab from './admin/MenuTab';
 import StatsTab from './admin/StatsTab';
 import SettingsTab from './admin/SettingsTab';
 import DashboardTab from './admin/DashboardTab';
-import { Branch, Category, MenuItem, Order, PrinterSettings, KitchenSettings, Topping, ToppingGroup } from '../types';
+import { Branch, Category, MenuItem, Order, PrinterSettings, KitchenSettings, Topping, ToppingGroup, CustomerSettings } from '../types';
 
 type AdminTab = 'dashboard' | 'orders' | 'menu' | 'stats' | 'settings';
 
@@ -24,6 +25,8 @@ interface AdminViewProps {
     setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
     kitchenSettings: KitchenSettings;
     setKitchenSettings: React.Dispatch<React.SetStateAction<KitchenSettings>>;
+    customerSettings: CustomerSettings;
+    setCustomerSettings: React.Dispatch<React.SetStateAction<CustomerSettings>>;
     logoUrl: string;
     setLogoUrl: React.Dispatch<React.SetStateAction<string>>;
     themeColor: string;
@@ -62,6 +65,8 @@ const AdminView: React.FC<AdminViewProps> = (props) => {
                     setBranches={props.setBranches} 
                     kitchenSettings={props.kitchenSettings}
                     setKitchenSettings={props.setKitchenSettings}
+                    customerSettings={props.customerSettings}
+                    setCustomerSettings={props.setCustomerSettings}
                     logoUrl={props.logoUrl}
                     setLogoUrl={props.setLogoUrl}
                     themeColor={props.themeColor}

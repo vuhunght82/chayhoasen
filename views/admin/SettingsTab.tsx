@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { Branch, PrinterSettings, KitchenSettings, OrderItem, SavedSound } from '../../types';
+import { Branch, PrinterSettings, KitchenSettings, OrderItem, SavedSound, CustomerSettings } from '../../types';
 import { useToast, useConfirmation } from '../../App';
 import { storage } from '../../firebase';
 import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
@@ -101,6 +100,8 @@ interface SettingsTabProps {
     setBranches: (branches: Branch[] | ((prev: Branch[]) => Branch[])) => void;
     kitchenSettings: KitchenSettings;
     setKitchenSettings: (settings: KitchenSettings | ((prev: KitchenSettings) => KitchenSettings)) => void;
+    customerSettings: CustomerSettings;
+    setCustomerSettings: (settings: CustomerSettings | ((prev: CustomerSettings) => CustomerSettings)) => void;
     logoUrl: string;
     setLogoUrl: (url: string | ((prev: string) => string)) => void;
     themeColor: string;
@@ -108,7 +109,7 @@ interface SettingsTabProps {
     resetAllData: () => void;
 }
 
-const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, kitchenSettings, setKitchenSettings, logoUrl, setLogoUrl, themeColor, setThemeColor, resetAllData }) => {
+const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, kitchenSettings, setKitchenSettings, customerSettings, setCustomerSettings, logoUrl, setLogoUrl, themeColor, setThemeColor, resetAllData }) => {
     const [newBranchName, setNewBranchName] = useState('');
     const { showToast } = useToast();
     const { confirm } = useConfirmation();
@@ -554,6 +555,43 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ branches, setBranches, kitche
                             </div>
                         </div>
                     )}
+                </div>
+                
+                {/* Customer Experience Settings */}
+                 <div className="bg-primary-dark p-6 rounded-lg border border-accent/50">
+                    <h3 className="text-lg font-semibold text-accent mb-4">Cài đặt Trải nghiệm Khách hàng</h3>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-100 mb-3">Âm thanh thông báo khi món sẵn sàng</label>
+                        <div className="space-y-3 bg-primary p-4 rounded-lg border border-accent/30">
+                            {(kitchenSettings.savedSounds || []).map((sound) => (
+                                <div key={sound.id} className="flex items-center justify-between hover:bg-primary-dark/30 p-2 rounded">
+                                    <div className="flex items-center cursor-pointer flex-grow" onClick={() => setCustomerSettings(prev => ({ ...prev, notificationSoundUrl: sound.url }))}>
+                                        <input
+                                            type="radio"
+                                            name="customerSound"
+                                            id={`customer-sound-${sound.id}`}
+                                            checked={customerSettings.notificationSoundUrl === sound.url}
+                                            onChange={() => setCustomerSettings(prev => ({ ...prev, notificationSoundUrl: sound.url }))}
+                                            className="h-4 w-4 text-accent focus:ring-accent border-gray-300 cursor-pointer"
+                                        />
+                                        <label htmlFor={`customer-sound-${sound.id}`} className="ml-3 text-sm text-white cursor-pointer font-medium">{sound.name}</label>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const audio = new Audio(sound.url);
+                                            audio.play().catch(err => console.error("Play error", err));
+                                        }}
+                                        className="text-accent hover:text-white text-xs border border-accent hover:bg-accent/20 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                                    >
+                                        <span>▶</span> Nghe thử
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">Âm thanh này sẽ phát trên thiết bị của khách hàng khi đơn hàng của họ được bếp hoàn thành.</p>
+                    </div>
                 </div>
 
                 {/* Kitchen Settings */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, createContext, useContext, useCallback, Rea
 import CustomerView from './views/CustomerView';
 import AdminView from './views/AdminView';
 import KitchenView from './views/KitchenView';
-import { Branch, Category, MenuItem, Order, OrderStatus, PaymentMethod, PrinterSettings, KitchenSettings, SavedSound, Topping, ToppingGroup } from './types';
+import { Branch, Category, MenuItem, Order, OrderStatus, PaymentMethod, PrinterSettings, KitchenSettings, SavedSound, Topping, ToppingGroup, CustomerSettings } from './types';
 import { database } from './firebase';
 import { ref, onValue, set, get, child } from 'firebase/database';
 
@@ -205,6 +205,9 @@ const INITIAL_DATA = {
     notificationRepeatCount: 3,
     savedSounds: DEFAULT_KITCHEN_SOUNDS
   },
+  customerSettings: {
+      notificationSoundUrl: 'https://actions.google.com/sounds/v1/alarms/notification_high_intensity.ogg',
+  },
   logoUrl: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%23166534'/%3E%3Cpath d='M50,30 A20,20 0 0,1 50,70 A20,20 0 0,1 50,30 M50,15 A35,35 0 0,0 50,85 A35,35 0 0,0 50,15 M30,50 A20,20 0 0,0 70,50 A20,20 0 0,0 30,50' fill='none' stroke='%23facc15' stroke-width='5'/%3E%3C/svg%3E`,
   themeColor: '#15803d' // Default green
 };
@@ -261,6 +264,7 @@ const App: React.FC = () => {
   const [toppings, setToppings] = useState<Topping[]>([]);
   const [toppingGroups, setToppingGroups] = useState<ToppingGroup[]>([]);
   const [kitchenSettings, setKitchenSettings] = useState<KitchenSettings>(INITIAL_DATA.kitchenSettings);
+  const [customerSettings, setCustomerSettings] = useState<CustomerSettings>(INITIAL_DATA.customerSettings);
   const [logoUrl, setLogoUrl] = useState<string>(INITIAL_DATA.logoUrl);
   const [themeColor, setThemeColor] = useState<string>(INITIAL_DATA.themeColor);
   
@@ -378,6 +382,7 @@ const App: React.FC = () => {
                 savedSounds
             });
         }
+        setCustomerSettings(data.customerSettings || INITIAL_DATA.customerSettings);
         setLogoUrl(data.logoUrl || INITIAL_DATA.logoUrl);
         setThemeColor(data.themeColor || INITIAL_DATA.themeColor);
       }
@@ -434,6 +439,11 @@ const App: React.FC = () => {
   const handleSetKitchenSettings = (newSettings: KitchenSettings | ((prev: KitchenSettings) => KitchenSettings)) => {
       const dataToSet = typeof newSettings === 'function' ? newSettings(kitchenSettings) : newSettings;
       set(ref(database, 'kitchenSettings'), dataToSet);
+  };
+
+  const handleSetCustomerSettings = (newSettings: CustomerSettings | ((prev: CustomerSettings) => CustomerSettings)) => {
+      const dataToSet = typeof newSettings === 'function' ? newSettings(customerSettings) : newSettings;
+      set(ref(database, 'customerSettings'), dataToSet);
   };
   
   const handleSetLogoUrl = (newUrl: string | ((prev: string) => string)) => {
@@ -502,6 +512,7 @@ const App: React.FC = () => {
                         toppingGroups={toppingGroups}
                         addOrder={addOrder}
                         orders={orders}
+                        customerSettings={customerSettings}
                     />;
         case 'admin':
             return <AdminView 
@@ -519,6 +530,8 @@ const App: React.FC = () => {
                         setOrders={handleSetOrders}
                         kitchenSettings={kitchenSettings}
                         setKitchenSettings={handleSetKitchenSettings}
+                        customerSettings={customerSettings}
+                        setCustomerSettings={handleSetCustomerSettings}
                         logoUrl={logoUrl}
                         setLogoUrl={handleSetLogoUrl}
                         themeColor={themeColor}
