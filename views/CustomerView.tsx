@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Branch, Category, MenuItem, CartItem, Order, OrderStatus, PrinterSettings, PaymentMethod, OrderItem, Topping, ToppingGroup, CustomerSettings } from '../types';
 import { useToast } from '../App';
@@ -598,26 +599,39 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
     const myOrderId = sessionStorage.getItem('myOrderId');
     if (!myOrderId) return;
     
+    // Find my order in the NEW orders list
     const myOrder = orders.find(o => o.id === myOrderId);
+    
+    // Find my order in the PREVIOUS orders list (ref)
     const prevOrder = previousOrdersRef.current.find(o => o.id === myOrderId);
 
+    // If order transitioned from NEW to COMPLETED
     if (myOrder && prevOrder && prevOrder.status === OrderStatus.NEW && myOrder.status === OrderStatus.COMPLETED) {
         setReadyOrder(myOrder);
         setIsOrderReadyModalOpen(true);
 
         // Play sound
         if (notificationAudioRef.current) {
-            notificationAudioRef.current.play().catch(e => console.error("Notification sound error:", e));
+            notificationAudioRef.current.currentTime = 0;
+            notificationAudioRef.current.play().catch(e => {
+                console.error("Notification sound autoplay failed (Browser Policy):", e);
+                showToast("Món đã sẵn sàng! (Vui lòng bấm vào màn hình nếu không nghe thấy tiếng)", 'success');
+            });
         }
 
         // Vibrate
         if ('vibrate' in navigator) {
-            navigator.vibrate([200, 100, 200]); // Vibrate pattern
+            try {
+                navigator.vibrate([200, 100, 200]); // Vibrate pattern
+            } catch (e) {
+                // Ignore vibrate errors
+            }
         }
     }
 
+    // Update ref for next render
     previousOrdersRef.current = orders;
-  }, [orders]);
+  }, [orders, showToast]);
 
 
   useEffect(() => {
@@ -678,6 +692,20 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
   }
   
   const handleSelectPayment = (method: PaymentMethod) => {
+     // --- CRITICAL AUDIO UNLOCK ---
+     // Attempt to play and immediately pause audio to unlock "Autoplay" permissions for later
+     if (notificationAudioRef.current) {
+        notificationAudioRef.current.volume = 0; // Mute initially to avoid startling user
+        notificationAudioRef.current.play().then(() => {
+            if (notificationAudioRef.current) {
+                notificationAudioRef.current.pause();
+                notificationAudioRef.current.currentTime = 0;
+                notificationAudioRef.current.volume = 1; // Restore volume
+            }
+        }).catch(e => console.warn("Audio unlock failed:", e));
+     }
+     // -----------------------------
+
      const newOrderItems: OrderItem[] = cart.map(cartItem => {
          const toppingsPrice = cartItem.selectedToppings?.reduce((sum, t) => sum + t.price, 0) || 0;
          const itemPayload: OrderItem = {
@@ -739,7 +767,11 @@ const CustomerView: React.FC<CustomerViewProps> = ({ branches, categories, menuI
   const handleCloseOrderReadyModal = () => {
       setIsOrderReadyModalOpen(false);
       setReadyOrder(null);
-      sessionStorage.removeItem('myOrderId'); // Clear the ID after acknowledgment
+      // Optional: keep ID in session storage to avoid re-notifying if page reloads, 
+      // or remove it if you want to allow re-notification for new orders only.
+      // Keeping it allows viewing "history" conceptually, but for now we can remove or keep.
+      // Removing it ensures we don't notify again for the same order if logic triggers weirdly.
+      sessionStorage.removeItem('myOrderId'); 
   }
 
   const handleScanSuccess = async (data: string) => {
